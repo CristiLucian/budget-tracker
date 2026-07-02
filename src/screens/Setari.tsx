@@ -5,7 +5,6 @@ import type { Action } from "../state";
 import { nextPeriodCandidate, prevPeriodCandidate, transactionCount } from "../state";
 import { formatNumber, parseAmount } from "../lib/money";
 import { buildPeriodCsv, downloadFile } from "../lib/csv";
-import { buildSeedState } from "../lib/seed";
 import { exportExcel } from "../lib/xlsx";
 import type { ToastMessage } from "../components/Toast";
 
@@ -100,17 +99,6 @@ export default function Setari({
       }
     };
     reader.readAsText(file);
-  }
-
-  async function importSeed() {
-    if (
-      transactionCount(state) > 0 &&
-      !window.confirm("Înlocuiești toate datele curente cu istoricul din seed-data.json?")
-    ) {
-      return;
-    }
-    await importState(buildSeedState());
-    showToast({ text: "Istoric importat", detail: "6 perioade, 300 de tranzacții" });
   }
 
   function categoryHasTransactions(id: string): boolean {
@@ -334,11 +322,6 @@ export default function Setari({
               e.target.value = "";
             }}
           />
-        </div>
-        <div className="export-row">
-          <button className="btn" onClick={importSeed}>
-            Importă istoricul din Google Sheets (seed-data.json)
-          </button>
         </div>
       </section>
       </div>

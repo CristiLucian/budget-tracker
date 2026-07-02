@@ -10,3 +10,7 @@ dev-dist/
 
 # local tooling settings
 .claude/settings.local.json
+
+# personal budget data — must never be committed to a public repo
+seed-data.json
+*backup*.json

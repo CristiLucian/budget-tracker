@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { AppState, Period } from "../types";
 import type { Action } from "../state";
-import { ensureCurrentPeriod, transactionCount } from "../state";
+import { transactionCount } from "../state";
 import { formatLei, parseAmount, sumAmounts } from "../lib/money";
 import { uuid } from "../lib/id";
 import { categoryEmoji } from "../lib/icons";
-import { buildSeedState } from "../lib/seed";
 import { loadState } from "../storage";
 import type { ToastMessage } from "../components/Toast";
 
@@ -86,11 +85,6 @@ export default function Adauga({
     close();
   }
 
-  async function importSeed() {
-    await importState(ensureCurrentPeriod(buildSeedState(), new Date()));
-    showToast({ text: "Istoric importat", detail: "6 perioade, 300 de tranzacții" });
-  }
-
   async function migrateLocal() {
     if (!localData) return;
     await importState(localData.state);
@@ -112,15 +106,6 @@ export default function Adauga({
           </p>
           <button className="btn btn--primary" onClick={migrateLocal}>
             Mută datele în cont
-          </button>
-        </div>
-      )}
-
-      {isEmpty && !localData && (
-        <div className="banner">
-          <p>Prima pornire: poți prelua istoricul existent.</p>
-          <button className="btn btn--primary" onClick={importSeed}>
-            Importă istoricul din Google Sheets (seed-data.json)
           </button>
         </div>
       )}
