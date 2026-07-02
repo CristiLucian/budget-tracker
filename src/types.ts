@@ -1,0 +1,34 @@
+export type Category = {
+  id: string; // slug, e.g. "alimente"
+  name: string; // display, e.g. "Alimente"
+  order: number;
+  archived: boolean; // hidden from quick-add, kept for history
+};
+
+export type Transaction = {
+  id: string; // uuid
+  categoryId: string;
+  amount: number; // positive, RON
+  note?: string;
+  timestamp: string; // ISO datetime
+};
+
+export type Period = {
+  id: string; // e.g. "2026-06"
+  name: string; // e.g. "Iunie 2026"
+  start: string; // ISO date, e.g. "2026-06-07"
+  end: string; // start of next period (exclusive)
+  budgetAvailable: number;
+  transactions: Transaction[];
+};
+
+export type Settings = {
+  monthStartDay: number; // default 7; periods run 7th -> 7th
+  currency: "RON";
+  categories: Category[];
+};
+
+export type AppState = {
+  settings: Settings;
+  periods: Period[];
+};

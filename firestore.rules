@@ -1,0 +1,17 @@
+rules_version = '2';
+
+// Each authenticated user can access ONLY their own subtree:
+//   users/{uid}            (settings)
+//   users/{uid}/periods/*  (periods with embedded transactions)
+// Everything else is denied by default.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+
+      match /{document=**} {
+        allow read, write: if request.auth != null && request.auth.uid == uid;
+      }
+    }
+  }
+}

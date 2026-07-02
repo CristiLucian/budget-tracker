@@ -1,0 +1,12 @@
+node_modules/
+dist/
+dev-dist/
+*.local
+
+# Firebase client config — never commit real values
+.env
+.env.*
+!.env.example
+
+# local tooling settings
+.claude/settings.local.json

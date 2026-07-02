@@ -1,0 +1,135 @@
+import type { AppState, Period } from "../types";
+import { formatLei, sumAmounts } from "../lib/money";
+import { categoryEmoji } from "../lib/icons";
+import PeriodSwitcher from "../components/PeriodSwitcher";
+
+export default function Dashboard({
+  state,
+  period,
+  onSelectPeriod,
+  onOpenCategory,
+  currentPeriodId,
+  goToSettings
+}: {
+  state: AppState;
+  period: Period | undefined;
+  onSelectPeriod: (id: string) => void;
+  onOpenCategory: (categoryId: string, periodId: string) => void;
+  currentPeriodId: string | undefined;
+  goToSettings: () => void;
+}) {
+  if (!period) {
+    return (
+      <div className="dashboard">
+        <header className="screen-header"><h1>Dashboard</h1></header>
+        <p className="muted">Nicio perioadă încă.</p>
+      </div>
+    );
+  }
+
+  const cheltuit = sumAmounts(period.transactions);
+  const ramas = period.budgetAvailable - cheltuit;
+  const pct =
+    period.budgetAvailable > 0
+      ? Math.min(100, (cheltuit / period.budgetAvailable) * 100)
+      : cheltuit > 0
+        ? 100
+        : 0;
+
+  const totalsByCategory = new Map<string, number>();
+  for (const t of period.transactions) {
+    totalsByCategory.set(
+      t.categoryId,
+      (totalsByCategory.get(t.categoryId) ?? 0) + Math.round(t.amount * 100)
+    );
+  }
+
+  // Every visible category, even with zero spend; archived/removed ones
+  // only when they still have transactions in this period.
+  const rows = [...state.settings.categories]
+    .sort((a, b) => a.order - b.order)
+    .filter((c) => !c.archived || totalsByCategory.has(c.id))
+    .map((c) => ({
+      id: c.id,
+      name: c.name,
+      total: (totalsByCategory.get(c.id) ?? 0) / 100
+    }));
+  for (const [id, cents] of totalsByCategory) {
+    if (!rows.some((r) => r.id === id)) rows.push({ id, name: id, total: cents / 100 });
+  }
+  const maxTotal = Math.max(1, ...rows.map((r) => r.total));
+
+  const isCurrent = period.id === currentPeriodId;
+  const needsBudget = isCurrent && period.budgetAvailable === 0;
+
+  return (
+    <div className="dashboard">
+      <header className="screen-header"><h1>Dashboard</h1></header>
+
+      <PeriodSwitcher periods={state.periods} period={period} onSelect={onSelectPeriod} />
+
+      {needsBudget && (
+        <div className="banner banner--soft">
+          <p>Bugetul disponibil pentru {period.name} nu este setat.</p>
+          <button className="btn" onClick={goToSettings}>Setează în Setări</button>
+        </div>
+      )}
+
+      <div className="dashboard__grid">
+      <div className={`hero ${ramas < 0 ? "hero--negative" : ""}`}>
+        <span className="hero__label">Buget rămas</span>
+        <span className="hero__value">{formatLei(ramas)}</span>
+        <span
+          className="hero__track"
+          role="progressbar"
+          aria-valuenow={Math.round(pct)}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label="Procent cheltuit"
+        >
+          <span className="hero__fill" style={{ width: `${pct}%` }} />
+        </span>
+        <div className="hero__stats">
+          <span className="hero__stat">
+            <span className="hero__stat-label">Disponibil</span>
+            <span className="hero__stat-value">{formatLei(period.budgetAvailable)}</span>
+          </span>
+          <span className="hero__stat hero__stat--right">
+            <span className="hero__stat-label">Cheltuit</span>
+            <span className="hero__stat-value">{formatLei(cheltuit)}</span>
+          </span>
+        </div>
+      </div>
+
+      <ul className="cat-totals">
+        {rows.map((r) => (
+          <li key={r.id}>
+            <button
+              className={`cat-total ${r.total === 0 ? "cat-total--zero" : ""}`}
+              onClick={() => onOpenCategory(r.id, period.id)}
+              aria-label={`${r.name}: ${formatLei(r.total)} — vezi tranzacțiile`}
+            >
+              <span className="cat-total__emoji" aria-hidden="true">
+                {categoryEmoji(r.id)}
+              </span>
+              <span className="cat-total__body">
+                <span className="cat-total__row">
+                  <span className="cat-total__name">{r.name}</span>
+                  <span className="cat-total__amount">{formatLei(r.total)}</span>
+                </span>
+                <span className="cat-total__bar">
+                  <span
+                    className="cat-total__fill"
+                    style={{ width: `${(r.total / maxTotal) * 100}%` }}
+                  />
+                </span>
+              </span>
+            </button>
+          </li>
+        ))}
+        {rows.length === 0 && <li className="muted">Nicio categorie.</li>}
+      </ul>
+      </div>
+    </div>
+  );
+}
