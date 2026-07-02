@@ -1,4 +1,4 @@
-# Buget — Personal Budget Tracker
+# Buget - Personal Budget Tracker
 
 Account-based budget tracker in Romanian, built as an installable PWA.
 Core goal unchanged since v1: **log a transaction in under 5 seconds**.
