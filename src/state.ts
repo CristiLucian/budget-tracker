@@ -74,8 +74,9 @@ export type Action =
   | { type: "updateTransaction"; periodId: string; transaction: Transaction; newPeriodId?: string }
   | { type: "deleteTransaction"; periodId: string; transactionId: string }
   | { type: "setBudgetAvailable"; periodId: string; amount: number }
+  | { type: "setExtraIncome"; periodId: string; amount: number }
+  | { type: "setCarryIn"; periodId: string; amount: number }
   | { type: "setMonthStartDay"; day: number }
-  | { type: "setCarryOver"; carryOver: boolean }
   | { type: "addCategory"; name: string }
   | { type: "renameCategory"; id: string; name: string }
   | { type: "moveCategory"; id: string; direction: -1 | 1 }
@@ -150,16 +151,22 @@ export function reducer(state: AppState, action: Action): AppState {
         budgetAvailable: action.amount
       }));
 
+    case "setExtraIncome":
+      return mapPeriod(state, action.periodId, (p) => ({
+        ...p,
+        extraIncome: action.amount || undefined
+      }));
+
+    case "setCarryIn":
+      return mapPeriod(state, action.periodId, (p) => ({
+        ...p,
+        carryIn: action.amount || undefined
+      }));
+
     case "setMonthStartDay":
       return {
         ...state,
         settings: { ...state.settings, monthStartDay: action.day }
-      };
-
-    case "setCarryOver":
-      return {
-        ...state,
-        settings: { ...state.settings, carryOver: action.carryOver }
       };
 
     case "addCategory": {

@@ -1954,3 +1954,100 @@ h3 {
   .cat-btn__emoji { width: 50px; height: 50px; font-size: 1.45rem; }
   .cat-btn__name { font-size: 1.02rem; }
 }
+
+/* --- Adaugă: budget bar + period entry --- */
+.budget-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  transition: border-color 0.12s ease;
+}
+.budget-bar:hover { border-color: var(--primary); }
+.budget-bar__item { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.budget-bar__label {
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  font-weight: 600;
+}
+.budget-bar__value {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+.budget-bar__value.negative { color: var(--danger); }
+.budget-bar__edit { flex: none; color: var(--muted); font-size: 0.95rem; align-self: flex-start; }
+@media (min-width: 900px) {
+  .budget-bar { max-width: 560px; }
+  .budget-bar__value { font-size: 1rem; }
+}
+
+.adauga__past-note {
+  margin: -4px 0 12px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.sheet__subtitle { color: var(--muted); font-weight: 500; font-size: 0.9rem; }
+
+/* --- Budget editor --- */
+.carry-suggest {
+  display: block;
+  width: 100%;
+  text-align: left;
+  margin: -4px 0 14px;
+  padding: 9px 12px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 10px;
+  background: var(--primary-soft);
+  color: var(--primary-ink);
+  font-weight: 600;
+  font-size: 0.86rem;
+}
+.budget-editor__total {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 12px 0 6px;
+  margin-top: 2px;
+  border-top: 1px solid var(--border);
+}
+.budget-editor__total strong { font-size: 1.2rem; font-variant-numeric: tabular-nums; }
+
+/* --- Settings: period income rows as buttons --- */
+.budget-row--btn {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow-sm);
+  padding: 12px 14px;
+  transition: border-color 0.12s ease;
+}
+.budget-row--btn:hover { border-color: var(--primary); }
+.budget-row__amount {
+  margin-left: auto;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.budget-row__edit { color: var(--muted); font-size: 0.9rem; }
+
+/* --- Statistici: keep the Top-10 table inside its card --- */
+.stat-table { table-layout: fixed; width: 100%; }
+.stat-table th,
+.stat-table td { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stat-table th:nth-child(1), .stat-table td:nth-child(1) { width: 4.6em; }
+.stat-table th:nth-child(4), .stat-table td:nth-child(4) { width: 6.1em; }
+@media (max-width: 560px) {
+  .stat-table { font-size: 0.82rem; }
+  .stat-table th, .stat-table td { padding: 8px 6px; }
+}

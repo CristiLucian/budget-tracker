@@ -1,5 +1,6 @@
 import type { Category, Period } from "../types";
 import { formatNumber, sumAmounts } from "./money";
+import { effectiveIncome } from "./budget";
 
 const SEP = ";"; // Excel with Romanian regional settings expects ; when decimal is ,
 
@@ -58,11 +59,10 @@ export function buildPeriodCsv(period: Period, categories: Category[]): string {
   rows.push("");
 
   const cheltuit = sumAmounts(period.transactions);
-  rows.push([csvCell("Buget disponibil"), formatNumber(period.budgetAvailable)].join(SEP));
+  const disponibil = effectiveIncome(period);
+  rows.push([csvCell("Buget disponibil"), formatNumber(disponibil)].join(SEP));
   rows.push([csvCell("Buget cheltuit"), formatNumber(cheltuit)].join(SEP));
-  rows.push(
-    [csvCell("Buget ramas"), formatNumber(period.budgetAvailable - cheltuit)].join(SEP)
-  );
+  rows.push([csvCell("Buget ramas"), formatNumber(disponibil - cheltuit)].join(SEP));
 
   // BOM so Excel opens it as UTF-8; CRLF line endings for Excel.
   return "﻿" + rows.join("\r\n") + "\r\n";

@@ -22,7 +22,9 @@ export type Period = {
   name: string; // e.g. "Iunie 2026"
   start: string; // ISO date, e.g. "2026-06-07"
   end: string; // start of next period (exclusive)
-  budgetAvailable: number;
+  budgetAvailable: number; // base income for the period (salariu)
+  extraIncome?: number; // other income (alte venituri)
+  carryIn?: number; // amount rolled in from the previous month (per-month, optional)
   transactions: Transaction[];
 };
 
@@ -30,9 +32,6 @@ export type Settings = {
   monthStartDay: number; // default 7; periods run 7th -> 7th
   currency: "RON";
   categories: Category[];
-  // Roll each period's leftover (rămas) into the next period's available
-  // budget. Purely additive and derived — never mutates budgetAvailable.
-  carryOver?: boolean;
 };
 
 export type AppState = {

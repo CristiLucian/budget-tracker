@@ -1,7 +1,7 @@
 import type { AppState, Period } from "../types";
 import { formatLei, sumAmounts } from "../lib/money";
 import { savingsIdSet, savingsOf, spendingOf } from "../lib/categories";
-import { carryInByPeriod } from "../lib/carry";
+import { effectiveIncome } from "../lib/budget";
 import { categoryEmoji } from "../lib/icons";
 import PeriodPicker from "../components/PeriodPicker";
 
@@ -30,8 +30,8 @@ export default function Dashboard({
   }
 
   const cheltuit = sumAmounts(period.transactions);
-  const carryIn = carryInByPeriod(state).get(period.id) ?? 0;
-  const available = period.budgetAvailable + carryIn; // effective, incl. roll-over
+  const available = effectiveIncome(period); // salariu + alte venituri + report
+  const hasBreakdown = (period.extraIncome ?? 0) !== 0 || (period.carryIn ?? 0) !== 0;
   const ramas = available - cheltuit;
   const savingsIds = savingsIdSet(state);
   const savings = savingsOf(period.transactions, savingsIds);
@@ -67,7 +67,7 @@ export default function Dashboard({
   const maxTotal = Math.max(1, ...rows.map((r) => r.total));
 
   const isCurrent = period.id === currentPeriodId;
-  const needsBudget = isCurrent && period.budgetAvailable === 0;
+  const needsBudget = isCurrent && available === 0;
 
   return (
     <div className="dashboard">
@@ -100,11 +100,12 @@ export default function Dashboard({
           <span className="hero__stat">
             <span className="hero__stat-label">Disponibil</span>
             <span className="hero__stat-value">{formatLei(available)}</span>
-            {carryIn !== 0 && (
+            {hasBreakdown && (
               <span className="hero__stat-note">
-                buget {formatLei(period.budgetAvailable)} · report{" "}
-                {carryIn > 0 ? "+" : "−"}
-                {formatLei(Math.abs(carryIn))}
+                salariu {formatLei(period.budgetAvailable)}
+                {(period.extraIncome ?? 0) !== 0 && ` · alte ${formatLei(period.extraIncome!)}`}
+                {(period.carryIn ?? 0) !== 0 &&
+                  ` · report ${period.carryIn! < 0 ? "−" : "+"}${formatLei(Math.abs(period.carryIn!))}`}
               </span>
             )}
           </span>

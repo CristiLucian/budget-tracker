@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { AppState, Period, Transaction } from "../types";
 import type { Action } from "../state";
 import { categoryName } from "../state";
-import { formatLei, parseAmount, sumAmounts } from "../lib/money";
+import { formatLei, parseAmount, sanitizeAmountInput, sumAmounts } from "../lib/money";
 import { dateInPeriod, findPeriodForDate } from "../lib/period";
 import { categoryEmoji } from "../lib/icons";
 import { uuid } from "../lib/id";
@@ -341,7 +341,7 @@ export default function Istoric({
                   inputMode="decimal"
                   value={amount}
                   onChange={(e) => {
-                    setAmount(e.target.value);
+                    setAmount(sanitizeAmountInput(e.target.value));
                     setError(null);
                   }}
                 />

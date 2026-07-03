@@ -3,6 +3,7 @@ import type { AppState } from "../types";
 import { categoryName } from "../state";
 import { formatLei, sumAmounts } from "../lib/money";
 import { savingsIdSet, savingsOf, spendingOf } from "../lib/categories";
+import { effectiveIncome } from "../lib/budget";
 import { categoryEmoji } from "../lib/icons";
 import { MONTHS_RO } from "../lib/period";
 import { MiniBars, PairBars, PercentLine } from "../components/charts";
@@ -25,7 +26,7 @@ export default function Statistici({
   currentPeriodId: string | undefined;
 }) {
   const periods = state.periods;
-  const withData = periods.filter((p) => p.transactions.length > 0 || p.budgetAvailable > 0);
+  const withData = periods.filter((p) => p.transactions.length > 0 || effectiveIncome(p) > 0);
   const [selectedCat, setSelectedCat] = useState<string>("alimente");
 
   const stats = useMemo(() => {
@@ -38,17 +39,18 @@ export default function Statistici({
       const cheltuit = sumAmounts(p.transactions);
       const spending = spendingOf(p.transactions, savingsIds);
       const savings = savingsOf(p.transactions, savingsIds);
+      const income = effectiveIncome(p); // salariu + alte venituri + report
       return {
         id: p.id,
         name: p.name,
         label: shortPeriodLabel(p.id),
-        disponibil: p.budgetAvailable,
+        disponibil: income,
         cheltuit, // total outflow incl. savings (for the vs-budget chart)
         spending, // real spending, excl. savings
         savings,
-        ramas: p.budgetAvailable - cheltuit,
+        ramas: income - cheltuit,
         // % of income not spent on real expenses (leftover + savings)
-        rata: p.budgetAvailable > 0 ? ((p.budgetAvailable - spending) / p.budgetAvailable) * 100 : 0,
+        rata: income > 0 ? ((income - spending) / income) * 100 : 0,
         txCount: p.transactions.length
       };
     });
@@ -90,7 +92,7 @@ export default function Statistici({
     const allTx = periods.flatMap((p) =>
       p.transactions
         .filter((t) => !savingsIds.has(t.categoryId))
-        .map((t) => ({ ...t, periodName: p.name }))
+        .map((t) => ({ ...t, periodId: p.id }))
     );
     const topTx = [...allTx].sort((a, b) => b.amount - a.amount).slice(0, 10);
 
@@ -122,7 +124,7 @@ export default function Statistici({
         periodName: current.name,
         dailyRate,
         projected: dailyRate * daysTotal,
-        budget: current.budgetAvailable,
+        budget: effectiveIncome(current),
         daysLeft: Math.max(0, Math.round(daysTotal - daysElapsed))
       };
     }
@@ -282,7 +284,7 @@ export default function Statistici({
           <tbody>
             {stats.topTx.map((t) => (
               <tr key={t.id}>
-                <td>{t.periodName}</td>
+                <td>{shortPeriodLabel(t.periodId)}</td>
                 <td>{categoryEmoji(t.categoryId)} {categoryName(state, t.categoryId)}</td>
                 <td className="muted">{t.note ?? "—"}</td>
                 <td className="num">{formatLei(t.amount)}</td>

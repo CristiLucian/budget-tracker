@@ -2,10 +2,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { AppState, Period } from "../types";
 import type { Action } from "../state";
 import { transactionCount } from "../state";
-import { formatLei, parseAmount, sumAmounts } from "../lib/money";
+import { formatLei, parseAmount, sanitizeAmountInput, sumAmounts } from "../lib/money";
+import { effectiveIncome } from "../lib/budget";
 import { uuid } from "../lib/id";
 import { categoryEmoji } from "../lib/icons";
+import { dateInPeriod } from "../lib/period";
 import { loadState } from "../storage";
+import PeriodPicker from "../components/PeriodPicker";
+import BudgetEditor from "../components/BudgetEditor";
 import type { ToastMessage } from "../components/Toast";
 
 export default function Adauga({
@@ -13,7 +17,6 @@ export default function Adauga({
   dispatch,
   currentPeriod,
   showToast,
-  goToSettings,
   importState,
   cloudMode
 }: {
@@ -25,11 +28,17 @@ export default function Adauga({
   importState: (s: AppState) => Promise<void>;
   cloudMode: boolean;
 }) {
+  const [selectedPeriodId, setSelectedPeriodId] = useState<string>(currentPeriod?.id ?? "");
   const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [editingBudget, setEditingBudget] = useState(false);
   const amountRef = useRef<HTMLInputElement>(null);
+
+  const period =
+    state.periods.find((p) => p.id === selectedPeriodId) ?? currentPeriod;
+  const isPast = period && currentPeriod && period.id !== currentPeriod.id;
 
   const categories = [...state.settings.categories]
     .filter((c) => !c.archived)
@@ -37,10 +46,11 @@ export default function Adauga({
 
   const activeCategory = categories.find((c) => c.id === activeCategoryId) ?? null;
   const isEmpty = transactionCount(state) === 0;
-  const needsBudget = currentPeriod && currentPeriod.budgetAvailable === 0 && !isEmpty;
 
-  // Signed in with an empty account, but this device has local (pre-account)
-  // data: offer a one-tap migration to the cloud.
+  const available = period ? effectiveIncome(period) : 0;
+  const cheltuit = period ? sumAmounts(period.transactions) : 0;
+  const ramas = available - cheltuit;
+
   const localData = useMemo(() => {
     if (!cloudMode || !isEmpty) return null;
     const local = loadState();
@@ -60,8 +70,15 @@ export default function Adauga({
     setError(null);
   }
 
+  function timestampFor(p: Period): string {
+    const now = new Date();
+    if (dateInPeriod(now, p)) return now.toISOString();
+    const [y, m, d] = p.start.split("-").map(Number);
+    return new Date(y, m - 1, d, 12, 0, 0).toISOString();
+  }
+
   function save() {
-    if (!activeCategory || !currentPeriod) return;
+    if (!activeCategory || !period) return;
     const value = parseAmount(amount);
     if (value === null) {
       setError("Sumă invalidă");
@@ -73,14 +90,13 @@ export default function Adauga({
       categoryId: activeCategory.id,
       amount: value,
       note: note.trim() || undefined,
-      timestamp: new Date().toISOString()
+      timestamp: timestampFor(period)
     };
-    dispatch({ type: "addTransaction", periodId: currentPeriod.id, transaction: tx });
-    const spent = sumAmounts([...currentPeriod.transactions, tx]);
-    const ramas = currentPeriod.budgetAvailable - spent;
+    dispatch({ type: "addTransaction", periodId: period.id, transaction: tx });
+    const newRamas = available - sumAmounts([...period.transactions, tx]);
     showToast({
       text: `${activeCategory.name} · ${formatLei(value)}`,
-      detail: `Buget rămas: ${formatLei(ramas)}`
+      detail: `${isPast ? period.name + " · " : ""}Buget rămas: ${formatLei(newRamas)}`
     });
     close();
   }
@@ -95,7 +111,6 @@ export default function Adauga({
     <div className="adauga">
       <header className="screen-header">
         <h1>Adaugă</h1>
-        {currentPeriod && <span className="screen-header__sub">{currentPeriod.name}</span>}
       </header>
 
       {localData && (
@@ -110,11 +125,42 @@ export default function Adauga({
         </div>
       )}
 
-      {needsBudget && (
-        <div className="banner banner--soft">
-          <p>Bugetul disponibil pentru {currentPeriod!.name} nu este setat.</p>
-          <button className="btn" onClick={goToSettings}>Setează în Setări</button>
-        </div>
+      {period && (
+        <>
+          <PeriodPicker
+            periods={state.periods}
+            period={period}
+            onSelect={setSelectedPeriodId}
+          />
+
+          <button
+            className="budget-bar"
+            onClick={() => setEditingBudget(true)}
+            aria-label={`Venit și buget pentru ${period.name} — apasă pentru a edita`}
+          >
+            <span className="budget-bar__item">
+              <span className="budget-bar__label">Disponibil</span>
+              <span className="budget-bar__value">{formatLei(available)}</span>
+            </span>
+            <span className="budget-bar__item">
+              <span className="budget-bar__label">Cheltuit</span>
+              <span className="budget-bar__value">{formatLei(cheltuit)}</span>
+            </span>
+            <span className="budget-bar__item">
+              <span className="budget-bar__label">Rămas</span>
+              <span className={`budget-bar__value ${ramas < 0 ? "negative" : ""}`}>
+                {formatLei(ramas)}
+              </span>
+            </span>
+            <span className="budget-bar__edit" aria-hidden="true">✎</span>
+          </button>
+
+          {isPast && (
+            <p className="adauga__past-note">
+              Adaugi în <strong>{period.name}</strong> (lună anterioară).
+            </p>
+          )}
+        </>
       )}
 
       <div className="cat-grid">
@@ -130,13 +176,14 @@ export default function Adauga({
         ))}
       </div>
 
-      {activeCategory && currentPeriod && (
+      {activeCategory && period && (
         <>
           <div className="sheet-backdrop" onClick={close} />
           <div className="sheet" role="dialog" aria-label={`Adaugă în ${activeCategory.name}`}>
             <div className="sheet__handle" aria-hidden="true" />
             <div className="sheet__title">
               <span aria-hidden="true">{categoryEmoji(activeCategory.id)}</span> {activeCategory.name}
+              {isPast && <span className="sheet__subtitle"> · {period.name}</span>}
             </div>
             <form
               onSubmit={(e) => {
@@ -154,7 +201,7 @@ export default function Adauga({
                   placeholder="0,00"
                   value={amount}
                   onChange={(e) => {
-                    setAmount(e.target.value);
+                    setAmount(sanitizeAmountInput(e.target.value));
                     setError(null);
                   }}
                 />
@@ -180,6 +227,15 @@ export default function Adauga({
             </form>
           </div>
         </>
+      )}
+
+      {editingBudget && period && (
+        <BudgetEditor
+          state={state}
+          period={period}
+          dispatch={dispatch}
+          onClose={() => setEditingBudget(false)}
+        />
       )}
     </div>
   );

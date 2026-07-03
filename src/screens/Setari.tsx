@@ -3,11 +3,13 @@ import type { User } from "firebase/auth";
 import type { AppState } from "../types";
 import type { Action } from "../state";
 import { nextPeriodCandidate, prevPeriodCandidate, transactionCount } from "../state";
-import { formatNumber, parseAmount } from "../lib/money";
+import { formatLei } from "../lib/money";
+import { effectiveIncome } from "../lib/budget";
 import { buildPeriodCsv, downloadFile } from "../lib/csv";
 import { exportExcel } from "../lib/xlsx";
 import { isSavingsCategory } from "../lib/categories";
 import ThemeToggle from "../components/ThemeToggle";
+import BudgetEditor from "../components/BudgetEditor";
 import type { ToastMessage } from "../components/Toast";
 
 export default function Setari({
@@ -30,28 +32,14 @@ export default function Setari({
   const [csvPeriodId, setCsvPeriodId] = useState(
     state.periods[state.periods.length - 1]?.id ?? ""
   );
-  const [budgetDrafts, setBudgetDrafts] = useState<Record<string, string>>({});
+  const [editingPeriodId, setEditingPeriodId] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
 
   const periodsDesc = [...state.periods].reverse();
   const categories = [...state.settings.categories].sort((a, b) => a.order - b.order);
   const nextCandidate = nextPeriodCandidate(state);
   const prevCandidate = prevPeriodCandidate(state);
-
-  function commitBudget(periodId: string) {
-    const draft = budgetDrafts[periodId];
-    if (draft === undefined) return;
-    const value = draft.trim() === "" ? 0 : parseAmount(draft);
-    if (value === null) {
-      showToast({ text: "Sumă invalidă" });
-    } else {
-      dispatch({ type: "setBudgetAvailable", periodId, amount: value });
-    }
-    setBudgetDrafts((d) => {
-      const { [periodId]: _drop, ...rest } = d;
-      return rest;
-    });
-  }
+  const editingPeriod = state.periods.find((p) => p.id === editingPeriodId) ?? null;
 
   function exportJson() {
     downloadFile(
@@ -143,7 +131,11 @@ export default function Setari({
       </section>
 
       <section className="settings-section">
-        <h2>Perioade și buget disponibil</h2>
+        <h2>Perioade și venit</h2>
+        <p className="muted">
+          Venitul unei luni = salariu + alte venituri + report din luna trecută.
+          Apasă o lună ca să îl editezi.
+        </p>
         <div className="period-add-row">
           {nextCandidate && (
             <button
@@ -170,24 +162,12 @@ export default function Setari({
         </div>
         <ul className="budget-list">
           {periodsDesc.map((p) => (
-            <li key={p.id} className="budget-row">
-              <span className="budget-row__name">{p.name}</span>
-              <input
-                className="input input--inline"
-                inputMode="decimal"
-                value={budgetDrafts[p.id] ?? formatNumber(p.budgetAvailable)}
-                onFocus={() =>
-                  setBudgetDrafts((d) => ({
-                    ...d,
-                    [p.id]: p.budgetAvailable === 0 ? "" : String(p.budgetAvailable).replace(".", ",")
-                  }))
-                }
-                onChange={(e) =>
-                  setBudgetDrafts((d) => ({ ...d, [p.id]: e.target.value }))
-                }
-                onBlur={() => commitBudget(p.id)}
-                aria-label={`Buget disponibil ${p.name}`}
-              />
+            <li key={p.id}>
+              <button className="budget-row budget-row--btn" onClick={() => setEditingPeriodId(p.id)}>
+                <span className="budget-row__name">{p.name}</span>
+                <span className="budget-row__amount">{formatLei(effectiveIncome(p))}</span>
+                <span className="budget-row__edit" aria-hidden="true">✎</span>
+              </button>
             </li>
           ))}
         </ul>
@@ -208,26 +188,6 @@ export default function Setari({
           }}
           aria-label="Ziua de început a lunii"
         />
-      </section>
-
-      <section className="settings-section">
-        <h2>Report lunar</h2>
-        <label className="switch-row">
-          <span>
-            <span className="switch-row__title">Reportează soldul rămas</span>
-            <span className="muted">
-              Ce rămâne necheltuit la finalul unei luni se adaugă la bugetul
-              disponibil al lunii următoare (și invers dacă ai depășit).
-            </span>
-          </span>
-          <input
-            type="checkbox"
-            className="switch"
-            checked={state.settings.carryOver ?? false}
-            onChange={(e) => dispatch({ type: "setCarryOver", carryOver: e.target.checked })}
-            aria-label="Reportează soldul rămas în luna următoare"
-          />
-        </label>
       </section>
 
       <section className="settings-section">
@@ -365,6 +325,15 @@ export default function Setari({
         </div>
       </section>
       </div>
+
+      {editingPeriod && (
+        <BudgetEditor
+          state={state}
+          period={editingPeriod}
+          dispatch={dispatch}
+          onClose={() => setEditingPeriodId(null)}
+        />
+      )}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import type { AppState, Period } from "../types";
 import { sumAmounts } from "./money";
+import { effectiveIncome } from "./budget";
 
 const MONEY_FMT = '#,##0.00 "lei"';
 
@@ -30,13 +31,14 @@ export async function exportExcel(state: AppState): Promise<void> {
   sumar.getRow(1).font = { bold: true };
   for (const p of state.periods) {
     const cheltuit = sumAmounts(p.transactions);
-    const ramas = p.budgetAvailable - cheltuit;
+    const disp = effectiveIncome(p);
+    const ramas = disp - cheltuit;
     const row = sumar.addRow({
       name: p.name,
-      disp: p.budgetAvailable,
+      disp,
       chelt: cheltuit,
       ramas,
-      rata: p.budgetAvailable > 0 ? ramas / p.budgetAvailable : 0
+      rata: disp > 0 ? ramas / disp : 0
     });
     row.getCell("disp").numFmt = MONEY_FMT;
     row.getCell("chelt").numFmt = MONEY_FMT;
@@ -126,10 +128,11 @@ function addPeriodSheet(
 
   ws.addRow([]);
   const cheltuit = sumAmounts(period.transactions);
+  const disponibil = effectiveIncome(period);
   const rows: [string, number][] = [
-    ["Buget disponibil", period.budgetAvailable],
+    ["Buget disponibil", disponibil],
     ["Buget cheltuit", cheltuit],
-    ["Buget rămas", period.budgetAvailable - cheltuit]
+    ["Buget rămas", disponibil - cheltuit]
   ];
   for (const [label, value] of rows) {
     const r = ws.addRow([label, value]);
