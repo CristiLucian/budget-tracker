@@ -1,12 +1,16 @@
+import { useState } from "react";
 import type { AppState, Period } from "../types";
+import type { Action } from "../state";
 import { formatLei, sumAmounts } from "../lib/money";
 import { savingsIdSet, savingsOf, spendingOf } from "../lib/categories";
 import { effectiveIncome } from "../lib/budget";
 import { categoryEmoji } from "../lib/icons";
 import PeriodPicker from "../components/PeriodPicker";
+import BudgetEditor from "../components/BudgetEditor";
 
 export default function Dashboard({
   state,
+  dispatch,
   period,
   onSelectPeriod,
   onOpenCategory,
@@ -14,12 +18,14 @@ export default function Dashboard({
   goToSettings
 }: {
   state: AppState;
+  dispatch: (a: Action) => void;
   period: Period | undefined;
   onSelectPeriod: (id: string) => void;
   onOpenCategory: (categoryId: string, periodId: string) => void;
   currentPeriodId: string | undefined;
   goToSettings: () => void;
 }) {
+  const [editingBudget, setEditingBudget] = useState(false);
   if (!period) {
     return (
       <div className="dashboard">
@@ -83,8 +89,16 @@ export default function Dashboard({
       )}
 
       <div className="dashboard__grid">
-      <div className={`hero ${ramas < 0 ? "hero--negative" : ""}`}>
-        <span className="hero__label">Buget rămas</span>
+      <button
+        type="button"
+        className={`hero hero--btn ${ramas < 0 ? "hero--negative" : ""}`}
+        onClick={() => setEditingBudget(true)}
+        aria-label={`Buget ${period.name} — apasă pentru a edita venitul`}
+      >
+        <span className="hero__top">
+          <span className="hero__label">Buget rămas</span>
+          <span className="hero__edit" aria-hidden="true">✎</span>
+        </span>
         <span className="hero__value">{formatLei(ramas)}</span>
         <span
           className="hero__track"
@@ -120,7 +134,7 @@ export default function Dashboard({
             <span>💰 Economii: {formatLei(savings)}</span>
           </div>
         )}
-      </div>
+      </button>
 
       <ul className="cat-totals">
         {rows.map((r) => (
@@ -151,6 +165,15 @@ export default function Dashboard({
         {rows.length === 0 && <li className="muted">Nicio categorie.</li>}
       </ul>
       </div>
+
+      {editingBudget && (
+        <BudgetEditor
+          state={state}
+          period={period}
+          dispatch={dispatch}
+          onClose={() => setEditingBudget(false)}
+        />
+      )}
     </div>
   );
 }

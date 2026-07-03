@@ -293,8 +293,9 @@ export default function Istoric({
                     <tr key={t.id} className="istoric-table__row" onClick={() => startEdit(t)} tabIndex={0}
                       onKeyDown={(e) => (e.key === "Enter" ? startEdit(t) : undefined)}>
                       <td className="col-date">{shortDate(t.timestamp)}</td>
-                      <td className="col-cat muted">—</td>
-                      <td className="col-note">{t.note ?? ""}</td>
+                      <td className="col-note" colSpan={2}>
+                        {t.note ? t.note : <span className="muted">Fără notă</span>}
+                      </td>
                       <td className="col-amount">{formatLei(t.amount)}</td>
                     </tr>
                   ))}

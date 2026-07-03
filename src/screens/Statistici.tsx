@@ -277,16 +277,18 @@ export default function Statistici({
 
       <section className="stat-card">
         <h2>Top 10 cheltuieli</h2>
-        <table className="stat-table">
+        <table className="stat-table stat-table--top">
           <thead>
-            <tr><th>Perioadă</th><th>Categorie</th><th>Notă</th><th className="num">Sumă</th></tr>
+            <tr><th>Perioadă</th><th>Categorie</th><th className="num">Sumă</th></tr>
           </thead>
           <tbody>
             {stats.topTx.map((t) => (
               <tr key={t.id}>
                 <td>{shortPeriodLabel(t.periodId)}</td>
-                <td>{categoryEmoji(t.categoryId)} {categoryName(state, t.categoryId)}</td>
-                <td className="muted">{t.note ?? "—"}</td>
+                <td className="topcat">
+                  <span aria-hidden="true">{categoryEmoji(t.categoryId)}</span>{" "}
+                  {categoryName(state, t.categoryId)}
+                </td>
                 <td className="num">{formatLei(t.amount)}</td>
               </tr>
             ))}

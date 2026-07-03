@@ -31,9 +31,14 @@ export default function BudgetEditor({
   const [error, setError] = useState<string | null>(null);
 
   const suggestion = suggestedCarryIn(state, period.id);
+  const carryNum = parseMoney(carry, true) ?? 0;
+  const carryApplied = suggestion !== 0 && Math.abs(carryNum - suggestion) < 0.005;
+
+  const setCarryNum = (n: number) =>
+    setCarry((n < 0 ? "-" : "") + toDraft(Math.abs(n)));
 
   const preview =
-    (parseMoney(salary) ?? 0) + (parseMoney(extra) ?? 0) + (parseMoney(carry, true) ?? 0);
+    (parseMoney(salary) ?? 0) + (parseMoney(extra) ?? 0) + carryNum;
 
   function save() {
     const s = parseMoney(salary);
@@ -102,15 +107,22 @@ export default function BudgetEditor({
               }}
             />
           </label>
-          {suggestion !== 0 && (
-            <button
-              type="button"
-              className="carry-suggest"
-              onClick={() => setCarry(toDraft(Math.abs(suggestion)).replace(/^/, suggestion < 0 ? "-" : ""))}
-            >
-              ↩ Reportează soldul lunii trecute: {formatLei(suggestion)}
-            </button>
-          )}
+          <div className="carry-actions">
+            {suggestion !== 0 && !carryApplied && (
+              <button
+                type="button"
+                className="carry-suggest"
+                onClick={() => setCarryNum(suggestion)}
+              >
+                ↩ Reportează soldul lunii trecute: {formatLei(suggestion)}
+              </button>
+            )}
+            {carryNum !== 0 && (
+              <button type="button" className="carry-remove" onClick={() => setCarry("")}>
+                ✕ Elimină reportul
+              </button>
+            )}
+          </div>
 
           {error && <div className="field-error">{error}</div>}
 

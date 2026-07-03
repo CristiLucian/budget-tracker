@@ -261,6 +261,7 @@ function Shell({
         {tab === "dashboard" && (
           <Dashboard
             state={state}
+            dispatch={dispatch}
             period={selectedPeriod}
             onSelectPeriod={setSelectedPeriodId}
             onOpenCategory={openCategoryInIstoric}

@@ -12,6 +12,14 @@ import PeriodPicker from "../components/PeriodPicker";
 import BudgetEditor from "../components/BudgetEditor";
 import type { ToastMessage } from "../components/Toast";
 
+function greeting(): string {
+  const h = new Date().getHours();
+  if (h < 5) return "Bună";
+  if (h < 11) return "Bună dimineața";
+  if (h < 18) return "Bună ziua";
+  return "Bună seara";
+}
+
 export default function Adauga({
   state,
   dispatch,
@@ -50,6 +58,7 @@ export default function Adauga({
   const available = period ? effectiveIncome(period) : 0;
   const cheltuit = period ? sumAmounts(period.transactions) : 0;
   const ramas = available - cheltuit;
+  const pct = available > 0 ? Math.min(100, (cheltuit / available) * 100) : cheltuit > 0 ? 100 : 0;
 
   const localData = useMemo(() => {
     if (!cloudMode || !isEmpty) return null;
@@ -110,7 +119,8 @@ export default function Adauga({
   return (
     <div className="adauga">
       <header className="screen-header">
-        <h1>Adaugă</h1>
+        <h1>{greeting()}</h1>
+        <span className="screen-header__sub">Ce ai cheltuit?</span>
       </header>
 
       {localData && (
@@ -134,25 +144,28 @@ export default function Adauga({
           />
 
           <button
-            className="budget-bar"
+            className={`budget-card ${ramas < 0 ? "budget-card--over" : ""}`}
             onClick={() => setEditingBudget(true)}
             aria-label={`Venit și buget pentru ${period.name} — apasă pentru a edita`}
           >
-            <span className="budget-bar__item">
-              <span className="budget-bar__label">Disponibil</span>
-              <span className="budget-bar__value">{formatLei(available)}</span>
+            <div className="budget-card__top">
+              <span className="budget-card__label">Buget rămas</span>
+              <span className="budget-card__edit" aria-hidden="true">✎</span>
+            </div>
+            <span className="budget-card__value">{formatLei(ramas)}</span>
+            <span
+              className="budget-card__track"
+              role="progressbar"
+              aria-valuenow={Math.round(pct)}
+              aria-valuemin={0}
+              aria-valuemax={100}
+            >
+              <span className="budget-card__fill" style={{ width: `${pct}%` }} />
             </span>
-            <span className="budget-bar__item">
-              <span className="budget-bar__label">Cheltuit</span>
-              <span className="budget-bar__value">{formatLei(cheltuit)}</span>
-            </span>
-            <span className="budget-bar__item">
-              <span className="budget-bar__label">Rămas</span>
-              <span className={`budget-bar__value ${ramas < 0 ? "negative" : ""}`}>
-                {formatLei(ramas)}
-              </span>
-            </span>
-            <span className="budget-bar__edit" aria-hidden="true">✎</span>
+            <div className="budget-card__meta">
+              <span>Disponibil <b>{formatLei(available)}</b></span>
+              <span>Cheltuit <b>{formatLei(cheltuit)}</b></span>
+            </div>
           </button>
 
           {isPast && (

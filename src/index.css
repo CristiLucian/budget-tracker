@@ -2045,9 +2045,108 @@ h3 {
 .stat-table { table-layout: fixed; width: 100%; }
 .stat-table th,
 .stat-table td { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.stat-table th:nth-child(1), .stat-table td:nth-child(1) { width: 4.6em; }
-.stat-table th:nth-child(4), .stat-table td:nth-child(4) { width: 6.1em; }
+.stat-table th:nth-child(1), .stat-table td:nth-child(1) { width: 4.8em; }
+.stat-table .num { width: 6.4em; }
+.stat-table .topcat { text-overflow: ellipsis; }
 @media (max-width: 560px) {
   .stat-table { font-size: 0.82rem; }
   .stat-table th, .stat-table td { padding: 8px 6px; }
 }
+
+/* ============================================================
+   v5 — nicer budget card, tappable hero, carry undo, notes
+   ============================================================ */
+
+/* --- Adaugă: budget card --- */
+.budget-card {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background:
+    linear-gradient(180deg, var(--primary-soft), var(--surface) 70%);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 14px 16px;
+  margin-bottom: 14px;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+.budget-card:hover { border-color: var(--primary); box-shadow: var(--shadow-md); }
+.budget-card--over { background: linear-gradient(180deg, var(--danger-soft), var(--surface) 70%); }
+@media (min-width: 900px) { .budget-card { max-width: 560px; } }
+
+.budget-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.budget-card__label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  font-weight: 600;
+}
+.budget-card__edit { color: var(--muted); font-size: 0.95rem; }
+.budget-card__value {
+  display: block;
+  font-size: 1.7rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  margin: 2px 0 10px;
+}
+.budget-card--over .budget-card__value { color: var(--danger); }
+.budget-card__track {
+  display: block;
+  height: 7px;
+  border-radius: 4px;
+  background: #ffffff80;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+[data-theme="dark"] .budget-card__track { background: #ffffff1a; }
+.budget-card__fill {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--primary), var(--primary-dark));
+  transition: width 0.4s ease;
+}
+.budget-card--over .budget-card__fill { background: var(--danger); }
+.budget-card__meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.budget-card__meta b { color: var(--ink); font-variant-numeric: tabular-nums; }
+
+/* --- Budget editor: carry actions --- */
+.carry-actions { display: flex; flex-direction: column; gap: 8px; margin: -4px 0 14px; }
+.carry-remove {
+  align-self: flex-start;
+  border: none;
+  background: none;
+  padding: 4px 2px;
+  color: var(--danger);
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+.carry-remove:hover { text-decoration: underline; }
+
+/* --- Dashboard: tappable hero --- */
+.hero--btn { cursor: pointer; text-align: left; }
+.hero--btn:hover { box-shadow: 0 12px 34px rgba(17, 94, 86, 0.42); }
+.hero--btn.hero--negative:hover { box-shadow: 0 12px 34px rgba(159, 31, 28, 0.42); }
+.hero__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.hero__edit { opacity: 0.85; font-size: 1rem; }
+
+/* --- Istoric: notes --- */
+.tx-row__note { color: var(--ink); }
+.istoric-table__row .col-note { color: var(--ink); white-space: normal; }
