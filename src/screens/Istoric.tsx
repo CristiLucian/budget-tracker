@@ -274,7 +274,7 @@ export default function Istoric({
             <thead>
               <tr>
                 <th className="col-date">Data</th>
-                <th className="col-cat">Categorie</th>
+                {view === "cronologic" && <th className="col-cat">Categorie</th>}
                 <th className="col-note">Notă</th>
                 <th className="col-amount">Sumă</th>
               </tr>
@@ -286,14 +286,14 @@ export default function Istoric({
                     <td className="col-date" aria-hidden="true">
                       {categoryEmoji(g.id)}
                     </td>
-                    <td colSpan={2}>{g.name}</td>
+                    <td>{g.name}</td>
                     <td className="col-amount">{formatLei(g.total)}</td>
                   </tr>
                   {g.txs.map((t) => (
                     <tr key={t.id} className="istoric-table__row" onClick={() => startEdit(t)} tabIndex={0}
                       onKeyDown={(e) => (e.key === "Enter" ? startEdit(t) : undefined)}>
                       <td className="col-date">{shortDate(t.timestamp)}</td>
-                      <td className="col-note" colSpan={2}>
+                      <td className="col-note">
                         {t.note ? t.note : <span className="muted">Fără notă</span>}
                       </td>
                       <td className="col-amount">{formatLei(t.amount)}</td>

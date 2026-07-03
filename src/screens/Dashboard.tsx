@@ -74,6 +74,7 @@ export default function Dashboard({
 
   const isCurrent = period.id === currentPeriodId;
   const needsBudget = isCurrent && available === 0;
+  const over = ramas < 0 || (available > 0 && pct >= 90);
 
   return (
     <div className="dashboard">
@@ -91,7 +92,7 @@ export default function Dashboard({
       <div className="dashboard__grid">
       <button
         type="button"
-        className={`hero hero--btn ${ramas < 0 ? "hero--negative" : ""}`}
+        className={`hero hero--btn ${over ? "hero--negative" : ""}`}
         onClick={() => setEditingBudget(true)}
         aria-label={`Buget ${period.name} — apasă pentru a edita venitul`}
       >

@@ -2041,16 +2041,34 @@ h3 {
 }
 .budget-row__edit { color: var(--muted); font-size: 0.9rem; }
 
-/* --- Statistici: keep the Top-10 table inside its card --- */
-.stat-table { table-layout: fixed; width: 100%; }
-.stat-table th,
-.stat-table td { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.stat-table th:nth-child(1), .stat-table td:nth-child(1) { width: 4.8em; }
-.stat-table .num { width: 6.4em; }
-.stat-table .topcat { text-overflow: ellipsis; }
-@media (max-width: 560px) {
-  .stat-table { font-size: 0.82rem; }
-  .stat-table th, .stat-table td { padding: 8px 6px; }
+/* --- Statistici: Top-10 as a clean list (no cramped table) --- */
+.top-list { list-style: none; margin: 4px 0 0; padding: 0; }
+.top-list li + li { border-top: 1px solid var(--hairline); }
+.top-row { display: flex; align-items: center; gap: 12px; padding: 11px 2px; }
+.top-row__rank {
+  flex: none;
+  width: 22px;
+  text-align: center;
+  color: var(--muted);
+  font-weight: 700;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+.top-row__emoji { flex: none; font-size: 1.15rem; }
+.top-row__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.top-row__cat { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.top-row__per {
+  font-size: 0.8rem;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.top-row__amount {
+  flex: none;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 /* ============================================================

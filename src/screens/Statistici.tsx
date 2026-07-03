@@ -92,7 +92,7 @@ export default function Statistici({
     const allTx = periods.flatMap((p) =>
       p.transactions
         .filter((t) => !savingsIds.has(t.categoryId))
-        .map((t) => ({ ...t, periodId: p.id }))
+        .map((t) => ({ ...t, periodName: p.name }))
     );
     const topTx = [...allTx].sort((a, b) => b.amount - a.amount).slice(0, 10);
 
@@ -277,23 +277,22 @@ export default function Statistici({
 
       <section className="stat-card">
         <h2>Top 10 cheltuieli</h2>
-        <table className="stat-table stat-table--top">
-          <thead>
-            <tr><th>Perioadă</th><th>Categorie</th><th className="num">Sumă</th></tr>
-          </thead>
-          <tbody>
-            {stats.topTx.map((t) => (
-              <tr key={t.id}>
-                <td>{shortPeriodLabel(t.periodId)}</td>
-                <td className="topcat">
-                  <span aria-hidden="true">{categoryEmoji(t.categoryId)}</span>{" "}
-                  {categoryName(state, t.categoryId)}
-                </td>
-                <td className="num">{formatLei(t.amount)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <ol className="top-list">
+          {stats.topTx.map((t, i) => (
+            <li key={t.id} className="top-row">
+              <span className="top-row__rank">{i + 1}</span>
+              <span className="top-row__emoji" aria-hidden="true">{categoryEmoji(t.categoryId)}</span>
+              <span className="top-row__main">
+                <span className="top-row__cat">{categoryName(state, t.categoryId)}</span>
+                <span className="top-row__per">
+                  {t.periodName}
+                  {t.note ? ` · ${t.note}` : ""}
+                </span>
+              </span>
+              <span className="top-row__amount">{formatLei(t.amount)}</span>
+            </li>
+          ))}
+        </ol>
       </section>
 
       <div className="fact-grid">
