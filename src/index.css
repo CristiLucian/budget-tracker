@@ -1939,3 +1939,18 @@ h3 {
 }
 .switch:checked { background: var(--primary); }
 .switch:checked::after { transform: translateX(18px); }
+
+/* --- Adaugă: keep category names legible on narrow phones --- */
+.cat-btn { padding: 12px; gap: 8px; }
+.cat-btn__emoji { width: 40px; height: 40px; font-size: 1.2rem; }
+.cat-btn__name {
+  font-size: 0.9rem;
+  line-height: 1.2;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+@media (min-width: 900px) {
+  .cat-btn { padding: 18px; gap: 12px; }
+  .cat-btn__emoji { width: 50px; height: 50px; font-size: 1.45rem; }
+  .cat-btn__name { font-size: 1.02rem; }
+}
