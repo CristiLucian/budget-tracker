@@ -23,7 +23,8 @@ export function defaultCategories(): Category[] {
     id: slugify(name),
     name,
     order: i,
-    archived: false
+    archived: false,
+    isSavings: slugify(name) === "fond-economii"
   }));
 }
 
@@ -78,6 +79,7 @@ export type Action =
   | { type: "renameCategory"; id: string; name: string }
   | { type: "moveCategory"; id: string; direction: -1 | 1 }
   | { type: "setCategoryArchived"; id: string; archived: boolean }
+  | { type: "setCategorySavings"; id: string; isSavings: boolean }
   | { type: "deleteCategory"; id: string };
 
 function mapPeriod(state: AppState, periodId: string, fn: (p: Period) => Period): AppState {
@@ -206,6 +208,17 @@ export function reducer(state: AppState, action: Action): AppState {
           ...state.settings,
           categories: state.settings.categories.map((c) =>
             c.id === action.id ? { ...c, archived: action.archived } : c
+          )
+        }
+      };
+
+    case "setCategorySavings":
+      return {
+        ...state,
+        settings: {
+          ...state.settings,
+          categories: state.settings.categories.map((c) =>
+            c.id === action.id ? { ...c, isSavings: action.isSavings } : c
           )
         }
       };

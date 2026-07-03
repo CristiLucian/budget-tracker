@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import type { AppState } from "../types";
 import { categoryName } from "../state";
 import { formatLei, sumAmounts } from "../lib/money";
+import { savingsIdSet, savingsOf, spendingOf } from "../lib/categories";
 import { categoryEmoji } from "../lib/icons";
 import { MONTHS_RO } from "../lib/period";
 import { MiniBars, PairBars, PercentLine } from "../components/charts";
@@ -28,30 +29,39 @@ export default function Statistici({
   const [selectedCat, setSelectedCat] = useState<string>("alimente");
 
   const stats = useMemo(() => {
+    // Savings categories (e.g. Fond economii) are money kept, not spent.
+    // They still count in "cheltuit" (money that left the budget) but are
+    // excluded from every spending statistic below.
+    const savingsIds = savingsIdSet(state);
+
     const perPeriod = withData.map((p) => {
       const cheltuit = sumAmounts(p.transactions);
+      const spending = spendingOf(p.transactions, savingsIds);
+      const savings = savingsOf(p.transactions, savingsIds);
       return {
         id: p.id,
         name: p.name,
         label: shortPeriodLabel(p.id),
         disponibil: p.budgetAvailable,
-        cheltuit,
+        cheltuit, // total outflow incl. savings (for the vs-budget chart)
+        spending, // real spending, excl. savings
+        savings,
         ramas: p.budgetAvailable - cheltuit,
-        rata: p.budgetAvailable > 0 ? ((p.budgetAvailable - cheltuit) / p.budgetAvailable) * 100 : 0,
+        // % of income not spent on real expenses (leftover + savings)
+        rata: p.budgetAvailable > 0 ? ((p.budgetAvailable - spending) / p.budgetAvailable) * 100 : 0,
         txCount: p.transactions.length
       };
     });
 
-    const totalCheltuit = perPeriod.reduce((s, p) => s + Math.round(p.cheltuit * 100), 0) / 100;
+    const totalSpending = perPeriod.reduce((s, p) => s + Math.round(p.spending * 100), 0) / 100;
     const closed = perPeriod.filter((p) => p.id !== currentPeriodId);
     const avgBase = closed.length > 0 ? closed : perPeriod;
-    const avgCheltuit =
-      avgBase.length > 0
-        ? avgBase.reduce((s, p) => s + p.cheltuit, 0) / avgBase.length
-        : 0;
-    const avgRata =
-      avgBase.length > 0 ? avgBase.reduce((s, p) => s + p.rata, 0) / avgBase.length : 0;
-    const scumpa = [...perPeriod].sort((a, b) => b.cheltuit - a.cheltuit)[0];
+    const mean = (sel: (p: (typeof perPeriod)[number]) => number) =>
+      avgBase.length > 0 ? avgBase.reduce((s, p) => s + sel(p), 0) / avgBase.length : 0;
+    const avgSpending = mean((p) => p.spending);
+    const avgSavings = mean((p) => p.savings);
+    const avgRata = mean((p) => p.rata);
+    const scumpa = [...perPeriod].sort((a, b) => b.spending - a.spending)[0];
     const txTotal = perPeriod.reduce((s, p) => s + p.txCount, 0);
 
     // Category aggregates across all periods
@@ -73,17 +83,22 @@ export default function Statistici({
       }))
       .sort((a, b) => b.total - a.total);
 
-    // Top transactions
+    // Dominant spending category (savings excluded)
+    const dominant = catRows.find((c) => !savingsIds.has(c.id)) ?? null;
+
+    // Top expenses — real spending only, not savings deposits
     const allTx = periods.flatMap((p) =>
-      p.transactions.map((t) => ({ ...t, periodName: p.name }))
+      p.transactions
+        .filter((t) => !savingsIds.has(t.categoryId))
+        .map((t) => ({ ...t, periodName: p.name }))
     );
     const topTx = [...allTx].sort((a, b) => b.amount - a.amount).slice(0, 10);
 
-    // Cumulative savings (Fond economii category)
+    // Cumulative savings across all savings categories
     const savedTotal =
       periods
         .flatMap((p) => p.transactions)
-        .filter((t) => t.categoryId === "fond-economii")
+        .filter((t) => savingsIds.has(t.categoryId))
         .reduce((s, t) => s + Math.round(t.amount * 100), 0) / 100;
 
     // Current period projection (daily burn rate)
@@ -117,18 +132,20 @@ export default function Statistici({
 
     return {
       perPeriod,
-      totalCheltuit,
-      avgCheltuit,
+      totalSpending,
+      avgSpending,
+      avgSavings,
       avgRata,
       scumpa,
       txTotal,
       catRows,
+      dominant,
       topTx,
       savedTotal,
       projection,
       busiest
     };
-  }, [periods, withData, currentPeriodId]);
+  }, [state, periods, withData, currentPeriodId]);
 
   if (stats.perPeriod.length === 0) {
     return (
@@ -159,7 +176,12 @@ export default function Statistici({
       <div className="kpi-grid">
         <div className="kpi">
           <span className="kpi__label">Medie cheltuieli / lună</span>
-          <span className="kpi__value">{formatLei(stats.avgCheltuit)}</span>
+          <span className="kpi__value">{formatLei(stats.avgSpending)}</span>
+          <span className="kpi__sub">fără economii</span>
+        </div>
+        <div className="kpi">
+          <span className="kpi__label">Medie economii / lună</span>
+          <span className="kpi__value">{formatLei(stats.avgSavings)}</span>
         </div>
         <div className="kpi">
           <span className="kpi__label">Rată medie economisire</span>
@@ -170,12 +192,7 @@ export default function Statistici({
         <div className="kpi">
           <span className="kpi__label">Cea mai scumpă lună</span>
           <span className="kpi__value">{stats.scumpa?.name}</span>
-          <span className="kpi__sub">{formatLei(stats.scumpa?.cheltuit ?? 0)}</span>
-        </div>
-        <div className="kpi">
-          <span className="kpi__label">Total urmărit</span>
-          <span className="kpi__value">{formatLei(stats.totalCheltuit)}</span>
-          <span className="kpi__sub">{stats.txTotal} tranzacții</span>
+          <span className="kpi__sub">{formatLei(stats.scumpa?.spending ?? 0)}</span>
         </div>
       </div>
 
@@ -218,7 +235,10 @@ export default function Statistici({
 
       <section className="stat-card">
         <h2>Rata de economisire</h2>
-        <p className="muted">Cât la sută din bugetul disponibil a rămas necheltuit.</p>
+        <p className="muted">
+          Cât la sută din venitul disponibil nu a mers pe cheltuieli reale
+          (economii puse deoparte + ce a rămas).
+        </p>
         <PercentLine
           data={stats.perPeriod.map((p) => ({ label: p.label, value: p.rata }))}
         />
@@ -277,7 +297,7 @@ export default function Statistici({
           <span className="fact__emoji" aria-hidden="true">💰</span>
           <div>
             <strong>{formatLei(stats.savedTotal)}</strong>
-            <span className="muted">puși deoparte în Fond economii, în total</span>
+            <span className="muted">puși deoparte în economii, în total</span>
           </div>
         </div>
         <div className="stat-card fact">
@@ -290,13 +310,13 @@ export default function Statistici({
           </div>
         </div>
         <div className="stat-card fact">
-          <span className="fact__emoji" aria-hidden="true">{categoryEmoji(stats.catRows[0]?.id ?? "")}</span>
+          <span className="fact__emoji" aria-hidden="true">{categoryEmoji(stats.dominant?.id ?? "")}</span>
           <div>
-            <strong>{categoryName(state, stats.catRows[0]?.id ?? "")}</strong>
+            <strong>{stats.dominant ? categoryName(state, stats.dominant.id) : "—"}</strong>
             <span className="muted">
               categoria dominantă —{" "}
-              {stats.totalCheltuit > 0
-                ? `${((stats.catRows[0]?.total ?? 0) / stats.totalCheltuit * 100).toFixed(0)}% din total`
+              {stats.totalSpending > 0 && stats.dominant
+                ? `${((stats.dominant.total / stats.totalSpending) * 100).toFixed(0)}% din cheltuieli`
                 : "—"}
             </span>
           </div>
@@ -304,10 +324,8 @@ export default function Statistici({
         <div className="stat-card fact">
           <span className="fact__emoji" aria-hidden="true">📈</span>
           <div>
-            <strong>
-              {formatLei(stats.txTotal > 0 ? stats.totalCheltuit / stats.txTotal : 0)}
-            </strong>
-            <span className="muted">valoarea medie a unei tranzacții</span>
+            <strong>{formatLei(stats.totalSpending)}</strong>
+            <span className="muted">total cheltuieli (fără economii)</span>
           </div>
         </div>
       </div>

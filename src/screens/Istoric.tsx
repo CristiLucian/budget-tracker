@@ -6,7 +6,7 @@ import { formatLei, parseAmount, sumAmounts } from "../lib/money";
 import { dateInPeriod, findPeriodForDate } from "../lib/period";
 import { categoryEmoji } from "../lib/icons";
 import { uuid } from "../lib/id";
-import PeriodSwitcher from "../components/PeriodSwitcher";
+import PeriodPicker from "../components/PeriodPicker";
 import type { ToastMessage } from "../components/Toast";
 
 function toLocalInputValue(iso: string): string {
@@ -182,7 +182,7 @@ export default function Istoric({
     <div className="istoric">
       <header className="screen-header"><h1>Istoric</h1></header>
 
-      <PeriodSwitcher periods={state.periods} period={period} onSelect={onSelectPeriod} />
+      <PeriodPicker periods={state.periods} period={period} onSelect={onSelectPeriod} />
 
       <div className="istoric-bar">
         <div className="segmented" role="tablist" aria-label="Mod de afișare">
@@ -213,54 +213,114 @@ export default function Istoric({
         </button>
       </div>
 
-      {view === "categorii" ? (
-        <div className="tx-groups">
-          {groups.map((g) => (
-            <section key={g.id} className="tx-group">
-              <header className="tx-group__head">
-                <span className="tx-group__emoji" aria-hidden="true">
-                  {categoryEmoji(g.id)}
-                </span>
-                <span className="tx-group__name">{g.name}</span>
-                <span className="tx-group__total">{formatLei(g.total)}</span>
-              </header>
-              <ul className="tx-group__list">
-                {g.txs.map((t) => (
-                  <li key={t.id}>
-                    <button className="tx-row" onClick={() => startEdit(t)}>
-                      <span className="tx-row__date">{shortDate(t.timestamp)}</span>
-                      <span className="tx-row__note">{t.note ?? ""}</span>
-                      <span className="tx-row__amount">{formatLei(t.amount)}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ))}
-          {groups.length === 0 && <p className="muted">Nicio tranzacție.</p>}
-        </div>
-      ) : (
-        <ul className="tx-list">
-          {chronological.map((t) => (
-            <li key={t.id}>
-              <button className="tx" onClick={() => startEdit(t)}>
-                <span className="tx__emoji" aria-hidden="true">
-                  {categoryEmoji(t.categoryId)}
-                </span>
-                <span className="tx__main">
-                  <span className="tx__cat">{categoryName(state, t.categoryId)}</span>
-                  <span className="tx__sub">
-                    {shortDate(t.timestamp)}
-                    {t.note ? ` · ${t.note}` : ""}
+      {/* Mobile: cards */}
+      <div className="istoric-cards">
+        {view === "categorii" ? (
+          <div className="tx-groups">
+            {groups.map((g) => (
+              <section key={g.id} className="tx-group">
+                <header className="tx-group__head">
+                  <span className="tx-group__emoji" aria-hidden="true">
+                    {categoryEmoji(g.id)}
                   </span>
-                </span>
-                <span className="tx__amount">{formatLei(t.amount)}</span>
-              </button>
-            </li>
-          ))}
-          {chronological.length === 0 && <li className="muted">Nicio tranzacție.</li>}
-        </ul>
-      )}
+                  <span className="tx-group__name">{g.name}</span>
+                  <span className="tx-group__total">{formatLei(g.total)}</span>
+                </header>
+                <ul className="tx-group__list">
+                  {g.txs.map((t) => (
+                    <li key={t.id}>
+                      <button className="tx-row" onClick={() => startEdit(t)}>
+                        <span className="tx-row__date">{shortDate(t.timestamp)}</span>
+                        <span className="tx-row__note">{t.note ?? ""}</span>
+                        <span className="tx-row__amount">{formatLei(t.amount)}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ))}
+            {groups.length === 0 && <p className="muted">Nicio tranzacție.</p>}
+          </div>
+        ) : (
+          <ul className="tx-list">
+            {chronological.map((t) => (
+              <li key={t.id}>
+                <button className="tx" onClick={() => startEdit(t)}>
+                  <span className="tx__emoji" aria-hidden="true">
+                    {categoryEmoji(t.categoryId)}
+                  </span>
+                  <span className="tx__main">
+                    <span className="tx__cat">{categoryName(state, t.categoryId)}</span>
+                    <span className="tx__sub">
+                      {shortDate(t.timestamp)}
+                      {t.note ? ` · ${t.note}` : ""}
+                    </span>
+                  </span>
+                  <span className="tx__amount">{formatLei(t.amount)}</span>
+                </button>
+              </li>
+            ))}
+            {chronological.length === 0 && <li className="muted">Nicio tranzacție.</li>}
+          </ul>
+        )}
+      </div>
+
+      {/* Desktop: table */}
+      <div className="istoric-table-wrap">
+        {chronological.length === 0 ? (
+          <p className="muted">Nicio tranzacție.</p>
+        ) : (
+          <table className="istoric-table">
+            <thead>
+              <tr>
+                <th className="col-date">Data</th>
+                <th className="col-cat">Categorie</th>
+                <th className="col-note">Notă</th>
+                <th className="col-amount">Sumă</th>
+              </tr>
+            </thead>
+            {view === "categorii" ? (
+              groups.map((g) => (
+                <tbody key={g.id}>
+                  <tr className="istoric-table__group">
+                    <td className="col-date" aria-hidden="true">
+                      {categoryEmoji(g.id)}
+                    </td>
+                    <td colSpan={2}>{g.name}</td>
+                    <td className="col-amount">{formatLei(g.total)}</td>
+                  </tr>
+                  {g.txs.map((t) => (
+                    <tr key={t.id} className="istoric-table__row" onClick={() => startEdit(t)} tabIndex={0}
+                      onKeyDown={(e) => (e.key === "Enter" ? startEdit(t) : undefined)}>
+                      <td className="col-date">{shortDate(t.timestamp)}</td>
+                      <td className="col-cat muted">—</td>
+                      <td className="col-note">{t.note ?? ""}</td>
+                      <td className="col-amount">{formatLei(t.amount)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              ))
+            ) : (
+              <tbody>
+                {chronological.map((t) => (
+                  <tr key={t.id} className="istoric-table__row" onClick={() => startEdit(t)} tabIndex={0}
+                    onKeyDown={(e) => (e.key === "Enter" ? startEdit(t) : undefined)}>
+                    <td className="col-date">{shortDate(t.timestamp)}</td>
+                    <td className="col-cat">
+                      <span className="tag">
+                        <span aria-hidden="true">{categoryEmoji(t.categoryId)}</span>
+                        {categoryName(state, t.categoryId)}
+                      </span>
+                    </td>
+                    <td className="col-note">{t.note ?? ""}</td>
+                    <td className="col-amount">{formatLei(t.amount)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            )}
+          </table>
+        )}
+      </div>
 
       {editing && (
         <>

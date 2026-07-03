@@ -3,6 +3,10 @@ export type Category = {
   name: string; // display, e.g. "Alimente"
   order: number;
   archived: boolean; // hidden from quick-add, kept for history
+  // Money set aside, not really spent (e.g. "Fond economii"). It still
+  // counts toward "Buget cheltuit" on the Dashboard (money that left the
+  // available budget) but is excluded from spending statistics.
+  isSavings?: boolean;
 };
 
 export type Transaction = {

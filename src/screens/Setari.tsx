@@ -6,6 +6,8 @@ import { nextPeriodCandidate, prevPeriodCandidate, transactionCount } from "../s
 import { formatNumber, parseAmount } from "../lib/money";
 import { buildPeriodCsv, downloadFile } from "../lib/csv";
 import { exportExcel } from "../lib/xlsx";
+import { isSavingsCategory } from "../lib/categories";
+import ThemeToggle from "../components/ThemeToggle";
 import type { ToastMessage } from "../components/Toast";
 
 export default function Setari({
@@ -120,9 +122,7 @@ export default function Setari({
             <div className="account-row__info">
               <strong>{account.displayName ?? account.email}</strong>
               {account.displayName && <span className="muted">{account.email}</span>}
-              <span className="muted">
-                Datele se sincronizează automat și funcționează și offline.
-              </span>
+              <span className="muted">Ești conectat. Datele tale sunt salvate în contul tău.</span>
             </div>
             {onSignOut && (
               <button className="btn btn--small" onClick={onSignOut}>Ieși din cont</button>
@@ -134,6 +134,12 @@ export default function Setari({
             sincronizare, configurează Firebase (vezi SETUP.md în repo).
           </p>
         )}
+      </section>
+
+      <section className="settings-section">
+        <h2>Aspect</h2>
+        <p className="muted">Alege tema aplicației.</p>
+        <ThemeToggle variant="full" />
       </section>
 
       <section className="settings-section">
@@ -206,9 +212,23 @@ export default function Setari({
 
       <section className="settings-section">
         <h2>Categorii</h2>
+        <p className="muted">
+          Marchează cu 💰 categoriile de economii (banii puși deoparte). Sunt
+          excluse din statisticile de cheltuieli.
+        </p>
         <ul className="cat-manage">
           {categories.map((c, i) => (
             <li key={c.id} className={`cat-manage__row ${c.archived ? "is-archived" : ""}`}>
+              <button
+                className={`savings-toggle ${isSavingsCategory(c) ? "is-on" : ""}`}
+                onClick={() =>
+                  dispatch({ type: "setCategorySavings", id: c.id, isSavings: !isSavingsCategory(c) })
+                }
+                aria-pressed={isSavingsCategory(c)}
+                title={isSavingsCategory(c) ? "Categorie de economii" : "Marchează ca economii"}
+              >
+                💰
+              </button>
               <input
                 className="input input--inline cat-manage__name"
                 defaultValue={c.name}

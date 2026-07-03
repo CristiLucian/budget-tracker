@@ -1,7 +1,8 @@
 import type { AppState, Period } from "../types";
 import { formatLei, sumAmounts } from "../lib/money";
+import { savingsIdSet, savingsOf, spendingOf } from "../lib/categories";
 import { categoryEmoji } from "../lib/icons";
-import PeriodSwitcher from "../components/PeriodSwitcher";
+import PeriodPicker from "../components/PeriodPicker";
 
 export default function Dashboard({
   state,
@@ -29,6 +30,9 @@ export default function Dashboard({
 
   const cheltuit = sumAmounts(period.transactions);
   const ramas = period.budgetAvailable - cheltuit;
+  const savingsIds = savingsIdSet(state);
+  const savings = savingsOf(period.transactions, savingsIds);
+  const spending = spendingOf(period.transactions, savingsIds);
   const pct =
     period.budgetAvailable > 0
       ? Math.min(100, (cheltuit / period.budgetAvailable) * 100)
@@ -66,7 +70,7 @@ export default function Dashboard({
     <div className="dashboard">
       <header className="screen-header"><h1>Dashboard</h1></header>
 
-      <PeriodSwitcher periods={state.periods} period={period} onSelect={onSelectPeriod} />
+      <PeriodPicker periods={state.periods} period={period} onSelect={onSelectPeriod} />
 
       {needsBudget && (
         <div className="banner banner--soft">
@@ -99,6 +103,12 @@ export default function Dashboard({
             <span className="hero__stat-value">{formatLei(cheltuit)}</span>
           </span>
         </div>
+        {savings > 0 && (
+          <div className="hero__breakdown">
+            <span>🛒 Cheltuieli reale: {formatLei(spending)}</span>
+            <span>💰 Economii: {formatLei(savings)}</span>
+          </div>
+        )}
       </div>
 
       <ul className="cat-totals">

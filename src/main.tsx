@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { registerSW } from "virtual:pwa-register";
 import App from "./App";
+import { initTheme } from "./theme";
 // Inter with latin-ext (Romanian diacritics), self-hosted for offline use
 import "@fontsource/inter/latin-400.css";
 import "@fontsource/inter/latin-ext-400.css";
@@ -29,6 +30,9 @@ try {
 if (navigator.storage?.persist) {
   navigator.storage.persist().catch(() => {});
 }
+
+// Apply the saved (or system) theme before first paint to avoid a flash.
+initTheme();
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

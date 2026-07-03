@@ -14,6 +14,7 @@ import Dashboard from "./screens/Dashboard";
 import Istoric from "./screens/Istoric";
 import Statistici from "./screens/Statistici";
 import Setari from "./screens/Setari";
+import ThemeToggle from "./components/ThemeToggle";
 import Toast, { type ToastMessage } from "./components/Toast";
 
 export type Tab = "adauga" | "dashboard" | "istoric" | "statistici" | "setari";
@@ -222,6 +223,8 @@ function Shell({
             </svg>
           </span>
           <span className="sidebar__title">Buget</span>
+          <div className="sidebar__spacer" />
+          <ThemeToggle />
         </div>
         {nav("side")}
         <div className="sidebar__footer">
