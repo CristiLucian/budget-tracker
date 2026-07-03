@@ -1750,34 +1750,6 @@ h3 {
   color: var(--ink);
 }
 .period-picker__current:hover { border-color: var(--primary); }
-.period-menu {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 44px;
-  right: 44px;
-  z-index: 25;
-  margin: 0;
-  padding: 6px;
-  list-style: none;
-  max-height: 320px;
-  overflow-y: auto;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  box-shadow: var(--shadow-lg);
-}
-.period-menu__item {
-  width: 100%;
-  text-align: left;
-  border: none;
-  background: none;
-  padding: 10px 12px;
-  border-radius: 8px;
-  font-weight: 600;
-  color: var(--ink);
-}
-.period-menu__item:hover { background: var(--subtle); }
-.period-menu__item.is-active { color: var(--primary-ink); background: var(--primary-soft); }
 
 /* --- Dashboard hero breakdown --- */
 .hero__breakdown {
@@ -1865,3 +1837,105 @@ h3 {
   background: #fef9c3;
 }
 [data-theme="dark"] .savings-toggle.is-on { background: #2a2410; border-color: #a16207; }
+
+/* --- Calendar month picker popover --- */
+.period-cal {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 44px;
+  right: 44px;
+  z-index: 25;
+  padding: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow-lg);
+}
+@media (min-width: 900px) {
+  .period-cal { left: 0; right: auto; width: 280px; }
+}
+.period-cal__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.period-cal__year { font-weight: 800; font-size: 1rem; }
+.period-cal__nav {
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  border-radius: 8px;
+  min-width: 34px;
+  min-height: 34px;
+  font-size: 1.1rem;
+  line-height: 1;
+  color: var(--primary-ink);
+}
+.period-cal__nav:disabled { opacity: 0.3; }
+.period-cal__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.period-cal__month {
+  border: 1px solid transparent;
+  background: var(--subtle);
+  color: var(--ink);
+  border-radius: 9px;
+  padding: 10px 4px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  min-height: 42px;
+}
+.period-cal__month:hover:not(:disabled) { border-color: var(--primary); }
+.period-cal__month:disabled { opacity: 0.32; cursor: default; }
+.period-cal__month.is-active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+/* --- Hero: carry-over note --- */
+.hero__stat-note {
+  font-size: 0.72rem;
+  opacity: 0.8;
+  margin-top: 2px;
+}
+
+/* --- Settings: switch row --- */
+.switch-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  cursor: pointer;
+}
+.switch-row__title { display: block; font-weight: 600; margin-bottom: 2px; }
+.switch-row .muted { display: block; font-size: 0.84rem; }
+.switch {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: none;
+  width: 46px;
+  height: 28px;
+  margin-top: 2px;
+  border-radius: 999px;
+  background: var(--border-strong);
+  position: relative;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.switch::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.15s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+.switch:checked { background: var(--primary); }
+.switch:checked::after { transform: translateX(18px); }

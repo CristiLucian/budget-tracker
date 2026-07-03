@@ -1,6 +1,7 @@
 import type { AppState, Period } from "../types";
 import { formatLei, sumAmounts } from "../lib/money";
 import { savingsIdSet, savingsOf, spendingOf } from "../lib/categories";
+import { carryInByPeriod } from "../lib/carry";
 import { categoryEmoji } from "../lib/icons";
 import PeriodPicker from "../components/PeriodPicker";
 
@@ -29,13 +30,15 @@ export default function Dashboard({
   }
 
   const cheltuit = sumAmounts(period.transactions);
-  const ramas = period.budgetAvailable - cheltuit;
+  const carryIn = carryInByPeriod(state).get(period.id) ?? 0;
+  const available = period.budgetAvailable + carryIn; // effective, incl. roll-over
+  const ramas = available - cheltuit;
   const savingsIds = savingsIdSet(state);
   const savings = savingsOf(period.transactions, savingsIds);
   const spending = spendingOf(period.transactions, savingsIds);
   const pct =
-    period.budgetAvailable > 0
-      ? Math.min(100, (cheltuit / period.budgetAvailable) * 100)
+    available > 0
+      ? Math.min(100, (cheltuit / available) * 100)
       : cheltuit > 0
         ? 100
         : 0;
@@ -96,7 +99,14 @@ export default function Dashboard({
         <div className="hero__stats">
           <span className="hero__stat">
             <span className="hero__stat-label">Disponibil</span>
-            <span className="hero__stat-value">{formatLei(period.budgetAvailable)}</span>
+            <span className="hero__stat-value">{formatLei(available)}</span>
+            {carryIn !== 0 && (
+              <span className="hero__stat-note">
+                buget {formatLei(period.budgetAvailable)} · report{" "}
+                {carryIn > 0 ? "+" : "−"}
+                {formatLei(Math.abs(carryIn))}
+              </span>
+            )}
           </span>
           <span className="hero__stat hero__stat--right">
             <span className="hero__stat-label">Cheltuit</span>

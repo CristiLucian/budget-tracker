@@ -211,6 +211,26 @@ export default function Setari({
       </section>
 
       <section className="settings-section">
+        <h2>Report lunar</h2>
+        <label className="switch-row">
+          <span>
+            <span className="switch-row__title">Reportează soldul rămas</span>
+            <span className="muted">
+              Ce rămâne necheltuit la finalul unei luni se adaugă la bugetul
+              disponibil al lunii următoare (și invers dacă ai depășit).
+            </span>
+          </span>
+          <input
+            type="checkbox"
+            className="switch"
+            checked={state.settings.carryOver ?? false}
+            onChange={(e) => dispatch({ type: "setCarryOver", carryOver: e.target.checked })}
+            aria-label="Reportează soldul rămas în luna următoare"
+          />
+        </label>
+      </section>
+
+      <section className="settings-section">
         <h2>Categorii</h2>
         <p className="muted">
           Marchează cu 💰 categoriile de economii (banii puși deoparte). Sunt

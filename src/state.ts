@@ -75,6 +75,7 @@ export type Action =
   | { type: "deleteTransaction"; periodId: string; transactionId: string }
   | { type: "setBudgetAvailable"; periodId: string; amount: number }
   | { type: "setMonthStartDay"; day: number }
+  | { type: "setCarryOver"; carryOver: boolean }
   | { type: "addCategory"; name: string }
   | { type: "renameCategory"; id: string; name: string }
   | { type: "moveCategory"; id: string; direction: -1 | 1 }
@@ -153,6 +154,12 @@ export function reducer(state: AppState, action: Action): AppState {
       return {
         ...state,
         settings: { ...state.settings, monthStartDay: action.day }
+      };
+
+    case "setCarryOver":
+      return {
+        ...state,
+        settings: { ...state.settings, carryOver: action.carryOver }
       };
 
     case "addCategory": {

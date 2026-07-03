@@ -30,6 +30,9 @@ export type Settings = {
   monthStartDay: number; // default 7; periods run 7th -> 7th
   currency: "RON";
   categories: Category[];
+  // Roll each period's leftover (rămas) into the next period's available
+  // budget. Purely additive and derived — never mutates budgetAvailable.
+  carryOver?: boolean;
 };
 
 export type AppState = {
