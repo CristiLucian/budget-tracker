@@ -49,7 +49,7 @@ export function PairBars({
   const H = 240;
   const pad = { top: 16, right: 8, bottom: 28, left: 8 };
   // Guarantee each month enough room; the container scrolls when needed.
-  const W = Math.max(560, pad.left + pad.right + data.length * 72);
+  const W = Math.max(520, pad.left + pad.right + data.length * 72);
   const innerW = W - pad.left - pad.right;
   const innerH = H - pad.top - pad.bottom;
   const max = Math.max(1, ...data.map((d) => Math.max(d.a + (d.aExtra ?? 0), d.b)));
@@ -138,7 +138,7 @@ export function PercentLine({ data }: { data: { label: string; value: number }[]
   const H = 200;
   // Wide side padding so the first/last month labels don't clip.
   const pad = { top: 20, right: 34, bottom: 28, left: 34 };
-  const W = Math.max(560, pad.left + pad.right + data.length * 64);
+  const W = Math.max(520, pad.left + pad.right + data.length * 64);
   const innerW = W - pad.left - pad.right;
   const innerH = H - pad.top - pad.bottom;
   const min = Math.min(0, ...data.map((d) => d.value));
@@ -189,7 +189,7 @@ export function PercentLine({ data }: { data: { label: string; value: number }[]
 export function MiniBars({ data }: { data: { label: string; value: number }[] }) {
   const H = 200;
   const pad = { top: 24, right: 8, bottom: 28, left: 8 };
-  const W = Math.max(560, pad.left + pad.right + data.length * 64);
+  const W = Math.max(520, pad.left + pad.right + data.length * 64);
   const innerW = W - pad.left - pad.right;
   const innerH = H - pad.top - pad.bottom;
   const max = Math.max(1, ...data.map((d) => d.value));

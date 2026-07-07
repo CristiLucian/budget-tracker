@@ -176,12 +176,10 @@ h3 {
     padding: 32px 40px 48px;
   }
 
-  /* Center each screen in the space next to the sidebar and let it
-     breathe on wide monitors. */
+  /* Screens sit next to the sidebar (left-aligned) and can use up to
+     1160px on wide monitors. */
   .main > * {
     max-width: 1160px;
-    margin-left: auto;
-    margin-right: auto;
   }
 }
 
@@ -233,12 +231,14 @@ h3 {
     min-width: 0;
   }
   .statistici > .stat-card,
-  .statistici > .kpi-grid {
+  .statistici > .kpi-grid,
+  .statistici > .year-filter {
     margin-bottom: 0;
   }
   .statistici > .screen-header,
   .statistici > .kpi-grid,
   .statistici > .stat-card--accent,
+  .statistici > .year-filter,
   .statistici > .fact-grid {
     grid-column: 1 / -1;
   }
@@ -2149,6 +2149,14 @@ h3 {
   margin: -4px 0 12px;
   font-size: 0.85rem;
   color: var(--muted);
+}
+
+/* --- Statistici: year scope selector --- */
+.year-filter {
+  margin: 2px 0 14px;
+}
+.year-filter .chip-row {
+  margin: 0;
 }
 
 /* --- Statistici: yearly summary --- */

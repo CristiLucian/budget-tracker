@@ -32,6 +32,14 @@ export default function Statistici({
   );
   const [selectedCat, setSelectedCat] = useState<string>("alimente");
 
+  // Year scope for the time-based cards. Defaults to the current year so
+  // charts stay readable as history grows; "Toți anii" is one tap away.
+  const years = [...new Set(withData.map((p) => p.id.slice(0, 4)))].sort();
+  const currentYear = currentPeriodId?.slice(0, 4);
+  const [yearSel, setYearSel] = useState<string | null>(null);
+  const year =
+    yearSel ?? (currentYear && years.includes(currentYear) ? currentYear : "all");
+
   const stats = useMemo(() => {
     // Savings categories (e.g. Fond economii) are money kept, not spent.
     // They still count in "cheltuit" (money that left the budget) but are
@@ -64,6 +72,16 @@ export default function Statistici({
       };
     });
 
+    // Year-scoped views (charts, category analysis, top expenses). The
+    // KPI row, salary card and bottom facts stay all-time on purpose.
+    const scopedPer =
+      year === "all" ? perPeriod : perPeriod.filter((p) => p.id.startsWith(year));
+    const scopedPeriods =
+      year === "all" ? withData : withData.filter((p) => p.id.startsWith(year));
+    // The running month has no complete picture yet — leave it out of the
+    // savings-rate line so it doesn't distort the trend.
+    const rataPer = scopedPer.filter((p) => p.id !== currentPeriodId);
+
     const totalSpending = perPeriod.reduce((s, p) => s + Math.round(p.spending * 100), 0) / 100;
     const closed = perPeriod.filter((p) => p.id !== currentPeriodId);
     const avgBase = closed.length > 0 ? closed : perPeriod;
@@ -75,9 +93,9 @@ export default function Statistici({
     const scumpa = [...perPeriod].sort((a, b) => b.spending - a.spending)[0];
     const txTotal = perPeriod.reduce((s, p) => s + p.txCount, 0);
 
-    // Category aggregates across all periods
+    // Category aggregates within the selected year scope
     const catTotals = new Map<string, { total: number; count: number }>();
-    for (const p of periods) {
+    for (const p of scopedPeriods) {
       for (const t of p.transactions) {
         const e = catTotals.get(t.categoryId) ?? { total: 0, count: 0 };
         e.total += Math.round(t.amount * 100);
@@ -94,11 +112,24 @@ export default function Statistici({
       }))
       .sort((a, b) => b.total - a.total);
 
-    // Dominant spending category (savings excluded)
-    const dominant = catRows.find((c) => !savingsIds.has(c.id)) ?? null;
+    // Dominant spending category — all-time (bottom facts), savings excluded
+    const globalCatCents = new Map<string, number>();
+    for (const p of periods) {
+      for (const t of p.transactions) {
+        if (savingsIds.has(t.categoryId)) continue;
+        globalCatCents.set(
+          t.categoryId,
+          (globalCatCents.get(t.categoryId) ?? 0) + Math.round(t.amount * 100)
+        );
+      }
+    }
+    const dominantEntry = [...globalCatCents.entries()].sort((a, b) => b[1] - a[1])[0];
+    const dominant = dominantEntry
+      ? { id: dominantEntry[0], total: dominantEntry[1] / 100 }
+      : null;
 
-    // Top expenses — real spending only, not savings deposits
-    const allTx = periods.flatMap((p) =>
+    // Top expenses within the year scope — real spending only, not savings
+    const allTx = scopedPeriods.flatMap((p) =>
       p.transactions
         .filter((t) => !savingsIds.has(t.categoryId))
         .map((t) => ({ ...t, periodName: p.name }))
@@ -173,19 +204,22 @@ export default function Statistici({
       e.months += 1;
       yearCents.set(y, e);
     }
-    const years = [...yearCents.entries()]
+    const yearRows = [...yearCents.entries()]
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([year, e]) => ({
-        year,
+      .map(([y, e]) => ({
+        year: y,
         months: e.months,
         venit: e.venit / 100,
         spending: e.spending / 100,
         savings: e.savings / 100,
         rata: e.venit > 0 ? ((e.venit - e.spending) / e.venit) * 100 : 0
-      }));
+      }))
+      .filter((r) => year === "all" || r.year === year);
 
     return {
       perPeriod,
+      scopedPer,
+      rataPer,
       totalSpending,
       avgSpending,
       avgSavings,
@@ -205,9 +239,9 @@ export default function Statistici({
       lastSalary,
       salaryGrowth,
       extraTotal,
-      years
+      yearRows
     };
-  }, [state, periods, withData, balances, currentPeriodId]);
+  }, [state, periods, withData, balances, currentPeriodId, year]);
 
   if (stats.perPeriod.length === 0) {
     return (
@@ -221,7 +255,9 @@ export default function Statistici({
   const catForChart = stats.catRows.some((c) => c.id === selectedCat)
     ? selectedCat
     : stats.catRows[0]?.id ?? "";
-  const catSeries = withData.map((p) => ({
+  const scopedWithData =
+    year === "all" ? withData : withData.filter((p) => p.id.startsWith(year));
+  const catSeries = scopedWithData.map((p) => ({
     label: shortPeriodLabel(p.id),
     value:
       p.transactions
@@ -230,6 +266,8 @@ export default function Statistici({
   }));
   const catInfo = stats.catRows.find((c) => c.id === catForChart);
   const monthsWithSpend = catSeries.filter((s) => s.value > 0).length;
+  // Card-title suffix making the active scope visible on every filtered card.
+  const scope = year === "all" ? "" : ` · ${year}`;
 
   return (
     <div className="statistici">
@@ -282,10 +320,34 @@ export default function Statistici({
         </section>
       )}
 
+      <div className="year-filter">
+        <div className="chip-row" role="tablist" aria-label="Anul pentru statistici">
+          <button
+            role="tab"
+            aria-selected={year === "all"}
+            className={`chip ${year === "all" ? "is-active" : ""}`}
+            onClick={() => setYearSel("all")}
+          >
+            Toți anii
+          </button>
+          {years.map((y) => (
+            <button
+              key={y}
+              role="tab"
+              aria-selected={year === y}
+              className={`chip ${year === y ? "is-active" : ""}`}
+              onClick={() => setYearSel(y)}
+            >
+              {y}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <section className="stat-card">
-        <h2>Cheltuit vs. disponibil</h2>
+        <h2>Cheltuit vs. disponibil{scope}</h2>
         <PairBars
-          data={stats.perPeriod.map((p) => ({
+          data={stats.scopedPer.map((p) => ({
             label: p.label,
             // negative carry shrinks the bar; positive carry stacks on top
             a: Math.max(0, p.report < 0 ? p.venit + p.report : p.venit),
@@ -299,14 +361,102 @@ export default function Statistici({
       </section>
 
       <section className="stat-card">
-        <h2>Rata de economisire</h2>
+        <h2>Rata de economisire{scope}</h2>
         <p className="muted">
           Cât la sută din venitul lunii (salariu + alte venituri, fără report)
           nu a mers pe cheltuieli reale (economii puse deoparte + ce a rămas).
+          Luna în curs nu este inclusă.
         </p>
-        <PercentLine
-          data={stats.perPeriod.map((p) => ({ label: p.label, value: p.rata }))}
-        />
+        {stats.rataPer.length > 0 ? (
+          <PercentLine
+            data={stats.rataPer.map((p) => ({ label: p.label, value: p.rata }))}
+          />
+        ) : (
+          <p className="muted">Apare după prima lună încheiată.</p>
+        )}
+      </section>
+
+      <section className="stat-card">
+        <h2>Analiză pe categorie{scope}</h2>
+        <div className="chip-row chip-row--scroll" role="tablist" aria-label="Alege categoria">
+          {stats.catRows.map((c) => (
+            <button
+              key={c.id}
+              role="tab"
+              aria-selected={c.id === catForChart}
+              className={`chip ${c.id === catForChart ? "is-active" : ""}`}
+              onClick={() => setSelectedCat(c.id)}
+            >
+              {categoryEmoji(c.id)} {categoryName(state, c.id)}
+            </button>
+          ))}
+        </div>
+        <MiniBars data={catSeries} />
+        {catInfo && (
+          <div className="stat-facts">
+            <div><span className="muted">Total</span><strong>{formatLei(catInfo.total)}</strong></div>
+            <div>
+              <span className="muted">Medie / lună activă</span>
+              <strong>{formatLei(monthsWithSpend > 0 ? catInfo.total / monthsWithSpend : 0)}</strong>
+            </div>
+            <div><span className="muted">Tranzacții</span><strong>{catInfo.count}</strong></div>
+            <div><span className="muted">Medie / tranzacție</span><strong>{formatLei(catInfo.avgTx)}</strong></div>
+          </div>
+        )}
+      </section>
+
+      <section className="stat-card">
+        <h2>Top 10 cheltuieli{scope}</h2>
+        <ol className="top-list">
+          {stats.topTx.map((t, i) => (
+            <li key={t.id} className="top-row">
+              <span className="top-row__rank">{i + 1}</span>
+              <span className="top-row__emoji" aria-hidden="true">{categoryEmoji(t.categoryId)}</span>
+              <span className="top-row__main">
+                <span className="top-row__cat">{categoryName(state, t.categoryId)}</span>
+                <span className="top-row__per">
+                  {t.periodName}
+                  {t.note ? ` · ${t.note}` : ""}
+                </span>
+              </span>
+              <span className="top-row__amount">{formatLei(t.amount)}</span>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      <section className="stat-card">
+        <h2>Sumar anual{scope}</h2>
+        <div className="year-table-wrap">
+          <table className="year-table">
+            <thead>
+              <tr>
+                <th>An</th>
+                <th>Venit</th>
+                <th>Cheltuieli</th>
+                <th>Economii</th>
+                <th>Rată</th>
+              </tr>
+            </thead>
+            <tbody>
+              {stats.yearRows.map((y) => (
+                <tr key={y.year}>
+                  <td>
+                    {y.year}
+                    <span className="muted"> · {y.months} {y.months === 1 ? "lună" : "luni"}</span>
+                  </td>
+                  <td>{formatLei(y.venit)}</td>
+                  <td>{formatLei(y.spending)}</td>
+                  <td>{formatLei(y.savings)}</td>
+                  <td className={y.rata < 0 ? "negative" : ""}>{pct(y.rata)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="muted year-table__note">
+          Cheltuieli = fără economii. Rata pe venit real (fără report).
+        </p>
       </section>
 
       {stats.salaryMonthCount > 0 && (
@@ -347,89 +497,6 @@ export default function Statistici({
           </div>
         </section>
       )}
-
-      <section className="stat-card">
-        <h2>Analiză pe categorie</h2>
-        <div className="chip-row chip-row--scroll" role="tablist" aria-label="Alege categoria">
-          {stats.catRows.map((c) => (
-            <button
-              key={c.id}
-              role="tab"
-              aria-selected={c.id === catForChart}
-              className={`chip ${c.id === catForChart ? "is-active" : ""}`}
-              onClick={() => setSelectedCat(c.id)}
-            >
-              {categoryEmoji(c.id)} {categoryName(state, c.id)}
-            </button>
-          ))}
-        </div>
-        <MiniBars data={catSeries} />
-        {catInfo && (
-          <div className="stat-facts">
-            <div><span className="muted">Total</span><strong>{formatLei(catInfo.total)}</strong></div>
-            <div>
-              <span className="muted">Medie / lună activă</span>
-              <strong>{formatLei(monthsWithSpend > 0 ? catInfo.total / monthsWithSpend : 0)}</strong>
-            </div>
-            <div><span className="muted">Tranzacții</span><strong>{catInfo.count}</strong></div>
-            <div><span className="muted">Medie / tranzacție</span><strong>{formatLei(catInfo.avgTx)}</strong></div>
-          </div>
-        )}
-      </section>
-
-      <section className="stat-card">
-        <h2>Top 10 cheltuieli</h2>
-        <ol className="top-list">
-          {stats.topTx.map((t, i) => (
-            <li key={t.id} className="top-row">
-              <span className="top-row__rank">{i + 1}</span>
-              <span className="top-row__emoji" aria-hidden="true">{categoryEmoji(t.categoryId)}</span>
-              <span className="top-row__main">
-                <span className="top-row__cat">{categoryName(state, t.categoryId)}</span>
-                <span className="top-row__per">
-                  {t.periodName}
-                  {t.note ? ` · ${t.note}` : ""}
-                </span>
-              </span>
-              <span className="top-row__amount">{formatLei(t.amount)}</span>
-            </li>
-          ))}
-        </ol>
-      </section>
-
-      <section className="stat-card">
-        <h2>Sumar anual</h2>
-        <div className="year-table-wrap">
-          <table className="year-table">
-            <thead>
-              <tr>
-                <th>An</th>
-                <th>Venit</th>
-                <th>Cheltuieli</th>
-                <th>Economii</th>
-                <th>Rată</th>
-              </tr>
-            </thead>
-            <tbody>
-              {stats.years.map((y) => (
-                <tr key={y.year}>
-                  <td>
-                    {y.year}
-                    <span className="muted"> · {y.months} {y.months === 1 ? "lună" : "luni"}</span>
-                  </td>
-                  <td>{formatLei(y.venit)}</td>
-                  <td>{formatLei(y.spending)}</td>
-                  <td>{formatLei(y.savings)}</td>
-                  <td className={y.rata < 0 ? "negative" : ""}>{pct(y.rata)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <p className="muted year-table__note">
-          Cheltuieli = fără economii. Rata pe venit real (fără report).
-        </p>
-      </section>
 
       <div className="fact-grid">
         <div className="stat-card fact">
