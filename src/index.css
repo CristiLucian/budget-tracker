@@ -172,8 +172,84 @@ h3 {
 
   .main {
     margin-left: var(--sidebar-w);
-    max-width: 1080px;
+    max-width: none;
     padding: 32px 40px 48px;
+  }
+
+  /* Center each screen in the space next to the sidebar and let it
+     breathe on wide monitors. */
+  .main > * {
+    max-width: 1160px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+
+/* --- Wide desktop: two-column screen layouts --- */
+@media (min-width: 1100px) {
+  /* Adaugă: form column + recent transactions side panel (only when the
+     panel exists — otherwise the form uses the full width). */
+  .adauga--panel {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 380px;
+    column-gap: 28px;
+    align-items: start;
+  }
+  .adauga--panel > * {
+    grid-column: 1;
+    min-width: 0;
+  }
+  .adauga--panel .screen-header {
+    grid-column: 1 / -1;
+  }
+  .adauga--panel .recent-tx {
+    grid-column: 2;
+    grid-row: 2 / span 12;
+    margin-top: 0;
+    position: sticky;
+    top: 24px;
+    max-height: calc(100dvh - 48px);
+    overflow-y: auto;
+    scrollbar-width: thin;
+  }
+  .adauga--panel .budget-card {
+    max-width: none;
+  }
+  /* With the side panel the form column is narrower: three category
+     columns keep the names on one line. */
+  .adauga--panel .cat-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  /* Statistici: cards flow into two columns; KPIs, projection and the
+     bottom facts span the full width. */
+  .statistici {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+    align-items: start;
+  }
+  .statistici > * {
+    min-width: 0;
+  }
+  .statistici > .stat-card,
+  .statistici > .kpi-grid {
+    margin-bottom: 0;
+  }
+  .statistici > .screen-header,
+  .statistici > .kpi-grid,
+  .statistici > .stat-card--accent,
+  .statistici > .fact-grid {
+    grid-column: 1 / -1;
+  }
+  .statistici > .screen-header {
+    margin-bottom: 2px;
+  }
+
+  /* Dashboard: give the hero a bit more presence on wide screens */
+  .dashboard__grid {
+    grid-template-columns: minmax(360px, 460px) 1fr;
+    gap: 24px;
   }
 }
 
@@ -1293,6 +1369,14 @@ h3 {
   height: auto;
 }
 
+/* Charts scroll horizontally instead of squeezing months together;
+   opened at the most recent months (see ChartScroll). */
+.chart__scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
 .chart__bar-a {
   fill: var(--chart-a);
 }
@@ -1379,6 +1463,28 @@ h3 {
   flex-wrap: wrap;
   gap: 6px;
   margin: 8px 0 4px;
+}
+
+/* Single-line, swipeable variant (e.g. category picker on phones). */
+.chip-row--scroll {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  padding-bottom: 4px;
+}
+.chip-row--scroll .chip {
+  flex: none;
+  white-space: nowrap;
+}
+
+@media (min-width: 900px) {
+  /* Plenty of room on desktop: let the chips wrap instead of scrolling. */
+  .chip-row--scroll {
+    flex-wrap: wrap;
+    overflow-x: visible;
+    padding-bottom: 0;
+  }
 }
 
 .chip {
@@ -1992,7 +2098,9 @@ h3 {
   font-size: 0.9rem;
   line-height: 1.2;
   text-wrap: balance;
-  overflow-wrap: anywhere;
+  /* break-word only splits a word when it truly can't fit on its own
+     line — `anywhere` was slicing names like "Abonamente" mid-word. */
+  overflow-wrap: break-word;
 }
 @media (min-width: 900px) {
   .cat-btn { padding: 18px; gap: 12px; }
@@ -2083,6 +2191,14 @@ h3 {
 .year-table__note {
   margin: 10px 0 0;
   font-size: 0.82rem;
+}
+
+/* --- Note suggestions (tags under the note input) --- */
+.field--with-tags {
+  margin-bottom: 6px;
+}
+.note-tags {
+  margin: 0 0 14px;
 }
 
 /* --- Istoric: cross-month search --- */

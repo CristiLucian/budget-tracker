@@ -5,6 +5,8 @@ import { categoryName } from "../state";
 import { formatLei, parseAmount, parseMoney, sanitizeAmountInput, sumAmounts } from "../lib/money";
 import { dateInPeriod, findPeriodForDate } from "../lib/period";
 import { shortDate, sortNewestFirst } from "../lib/transactions";
+import { fold } from "../lib/suggestions";
+import NoteSuggestions from "../components/NoteSuggestions";
 import { categoryEmoji } from "../lib/icons";
 import { uuid } from "../lib/id";
 import PeriodPicker from "../components/PeriodPicker";
@@ -17,12 +19,6 @@ function toLocalInputValue(iso: string): string {
 }
 
 type View = "categorii" | "cronologic";
-
-/** Case- and diacritic-insensitive text for search matching. */
-function fold(s: string): string {
-  const NFD = s.toLowerCase().normalize("NFD");
-  return NFD.replace(new RegExp("[\\u0300-\\u036f]", "g"), "");
-}
 
 export default function Istoric({
   state,
@@ -431,7 +427,7 @@ export default function Istoric({
                   ))}
                 </select>
               </label>
-              <label className="field">
+              <label className="field field--with-tags">
                 <span className="field__label">Notă</span>
                 <input
                   className="input"
@@ -439,6 +435,13 @@ export default function Istoric({
                   onChange={(e) => setNote(e.target.value)}
                 />
               </label>
+              <NoteSuggestions
+                state={state}
+                categoryId={catId}
+                amount={parseAmount(amount)}
+                note={note}
+                onPick={setNote}
+              />
               <label className="field">
                 <span className="field__label">Data și ora</span>
                 <input

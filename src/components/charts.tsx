@@ -1,3 +1,4 @@
+import { useEffect, useRef, type ReactNode } from "react";
 import { formatLei } from "../lib/money";
 
 const compact = new Intl.NumberFormat("ro-RO", {
@@ -7,6 +8,25 @@ const compact = new Intl.NumberFormat("ro-RO", {
 
 export function compactLei(n: number): string {
   return compact.format(n);
+}
+
+/**
+ * Horizontal scroll container for charts. Each month keeps a readable
+ * minimum width (the SVG sets its own min-width), so on narrow screens the
+ * chart scrolls instead of squeezing; it starts scrolled to the most
+ * recent months.
+ */
+function ChartScroll({ children }: { children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (el) el.scrollLeft = el.scrollWidth;
+  }, [children]);
+  return (
+    <div className="chart__scroll" ref={ref}>
+      {children}
+    </div>
+  );
 }
 
 /**
@@ -26,9 +46,10 @@ export function PairBars({
   bLabel: string;
   aExtraLabel?: string;
 }) {
-  const W = 640;
   const H = 240;
   const pad = { top: 16, right: 8, bottom: 28, left: 8 };
+  // Guarantee each month enough room; the container scrolls when needed.
+  const W = Math.max(560, pad.left + pad.right + data.length * 72);
   const innerW = W - pad.left - pad.right;
   const innerH = H - pad.top - pad.bottom;
   const max = Math.max(1, ...data.map((d) => Math.max(d.a + (d.aExtra ?? 0), d.b)));
@@ -38,7 +59,13 @@ export function PairBars({
 
   return (
     <figure className="chart">
-      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${aLabel} vs ${bLabel}`}>
+      <ChartScroll>
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        style={{ minWidth: W }}
+        role="img"
+        aria-label={`${aLabel} vs ${bLabel}`}
+      >
         {data.map((d, i) => {
           const cx = pad.left + group * i + group / 2;
           const extra = d.aExtra ?? 0;
@@ -94,6 +121,7 @@ export function PairBars({
           y2={pad.top + innerH}
         />
       </svg>
+      </ChartScroll>
       <figcaption className="chart__legend">
         <span><i className="dot dot--a" /> {aLabel}</span>
         {hasExtra && aExtraLabel && (
@@ -107,9 +135,10 @@ export function PairBars({
 
 /** Line chart for percentages (e.g. savings rate per month). */
 export function PercentLine({ data }: { data: { label: string; value: number }[] }) {
-  const W = 640;
   const H = 200;
-  const pad = { top: 20, right: 16, bottom: 28, left: 16 };
+  // Wide side padding so the first/last month labels don't clip.
+  const pad = { top: 20, right: 34, bottom: 28, left: 34 };
+  const W = Math.max(560, pad.left + pad.right + data.length * 64);
   const innerW = W - pad.left - pad.right;
   const innerH = H - pad.top - pad.bottom;
   const min = Math.min(0, ...data.map((d) => d.value));
@@ -121,7 +150,13 @@ export function PercentLine({ data }: { data: { label: string; value: number }[]
 
   return (
     <figure className="chart">
-      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Rata de economisire pe luni">
+      <ChartScroll>
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        style={{ minWidth: W }}
+        role="img"
+        aria-label="Rata de economisire pe luni"
+      >
         {min < 0 && (
           <line className="chart__zero" x1={pad.left} y1={y(0)} x2={W - pad.right} y2={y(0)} />
         )}
@@ -145,15 +180,16 @@ export function PercentLine({ data }: { data: { label: string; value: number }[]
           </g>
         ))}
       </svg>
+      </ChartScroll>
     </figure>
   );
 }
 
 /** Single-series bars (category evolution across months). */
 export function MiniBars({ data }: { data: { label: string; value: number }[] }) {
-  const W = 640;
   const H = 200;
   const pad = { top: 24, right: 8, bottom: 28, left: 8 };
+  const W = Math.max(560, pad.left + pad.right + data.length * 64);
   const innerW = W - pad.left - pad.right;
   const innerH = H - pad.top - pad.bottom;
   const max = Math.max(1, ...data.map((d) => d.value));
@@ -162,7 +198,13 @@ export function MiniBars({ data }: { data: { label: string; value: number }[] })
 
   return (
     <figure className="chart">
-      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Evoluție pe luni">
+      <ChartScroll>
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        style={{ minWidth: W }}
+        role="img"
+        aria-label="Evoluție pe luni"
+      >
         {data.map((d, i) => {
           const cx = pad.left + group * i + group / 2;
           const h = (d.value / max) * innerH;
@@ -198,6 +240,7 @@ export function MiniBars({ data }: { data: { label: string; value: number }[] })
           y2={pad.top + innerH}
         />
       </svg>
+      </ChartScroll>
     </figure>
   );
 }

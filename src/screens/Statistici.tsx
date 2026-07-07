@@ -350,7 +350,7 @@ export default function Statistici({
 
       <section className="stat-card">
         <h2>Analiză pe categorie</h2>
-        <div className="chip-row" role="tablist" aria-label="Alege categoria">
+        <div className="chip-row chip-row--scroll" role="tablist" aria-label="Alege categoria">
           {stats.catRows.map((c) => (
             <button
               key={c.id}

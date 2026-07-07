@@ -11,6 +11,7 @@ import { shortDate, sortNewestFirst } from "../lib/transactions";
 import { loadState } from "../storage";
 import PeriodPicker from "../components/PeriodPicker";
 import BudgetEditor from "../components/BudgetEditor";
+import NoteSuggestions from "../components/NoteSuggestions";
 import type { ToastMessage } from "../components/Toast";
 
 export default function Adauga({
@@ -119,7 +120,7 @@ export default function Adauga({
   }
 
   return (
-    <div className="adauga">
+    <div className={`adauga ${period && recent.length > 0 ? "adauga--panel" : ""}`}>
       <header className="screen-header">
         <h1>Buget</h1>
         <span className="screen-header__sub">Adaugă o cheltuială</span>
@@ -257,7 +258,7 @@ export default function Adauga({
                 />
               </label>
               {error && <div className="field-error">{error}</div>}
-              <label className="field">
+              <label className="field field--with-tags">
                 <span className="field__label">Notă (opțional)</span>
                 <input
                   className="input"
@@ -266,6 +267,13 @@ export default function Adauga({
                   autoComplete="off"
                 />
               </label>
+              <NoteSuggestions
+                state={state}
+                categoryId={activeCategory.id}
+                amount={parseAmount(amount)}
+                note={note}
+                onPick={setNote}
+              />
               <div className="sheet__actions">
                 <button type="button" className="btn" onClick={close}>
                   Renunță
