@@ -10,33 +10,40 @@ export function compactLei(n: number): string {
 }
 
 /**
- * Grouped bar chart: for each label, a pair of bars (a = disponibil,
- * b = cheltuit). Pure SVG, scales to container width.
+ * Grouped bar chart: for each label, a pair of bars (a = venit, b =
+ * cheltuit). An optional `aExtra` (report) stacks on top of bar a in a
+ * lighter shade, so carried-over money reads as distinct from income.
+ * Pure SVG, scales to container width.
  */
 export function PairBars({
   data,
   aLabel,
-  bLabel
+  bLabel,
+  aExtraLabel
 }: {
-  data: { label: string; a: number; b: number }[];
+  data: { label: string; a: number; aExtra?: number; b: number }[];
   aLabel: string;
   bLabel: string;
+  aExtraLabel?: string;
 }) {
   const W = 640;
   const H = 240;
   const pad = { top: 16, right: 8, bottom: 28, left: 8 };
   const innerW = W - pad.left - pad.right;
   const innerH = H - pad.top - pad.bottom;
-  const max = Math.max(1, ...data.map((d) => Math.max(d.a, d.b)));
+  const max = Math.max(1, ...data.map((d) => Math.max(d.a + (d.aExtra ?? 0), d.b)));
   const group = innerW / Math.max(1, data.length);
   const barW = Math.min(26, group * 0.32);
+  const hasExtra = data.some((d) => (d.aExtra ?? 0) > 0);
 
   return (
     <figure className="chart">
       <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${aLabel} vs ${bLabel}`}>
         {data.map((d, i) => {
           const cx = pad.left + group * i + group / 2;
+          const extra = d.aExtra ?? 0;
           const ha = (d.a / max) * innerH;
+          const he = (extra / max) * innerH;
           const hb = (d.b / max) * innerH;
           const base = pad.top + innerH;
           return (
@@ -51,6 +58,18 @@ export function PairBars({
               >
                 <title>{`${d.label} — ${aLabel}: ${formatLei(d.a)}`}</title>
               </rect>
+              {he > 0 && (
+                <rect
+                  className="chart__bar-a2"
+                  x={cx - barW - 2}
+                  y={base - ha - he}
+                  width={barW}
+                  height={he}
+                  rx={4}
+                >
+                  <title>{`${d.label} — ${aExtraLabel ?? ""}: ${formatLei(extra)}`}</title>
+                </rect>
+              )}
               <rect
                 className="chart__bar-b"
                 x={cx + 2}
@@ -77,6 +96,9 @@ export function PairBars({
       </svg>
       <figcaption className="chart__legend">
         <span><i className="dot dot--a" /> {aLabel}</span>
+        {hasExtra && aExtraLabel && (
+          <span><i className="dot dot--a2" /> {aExtraLabel}</span>
+        )}
         <span><i className="dot dot--b" /> {bLabel}</span>
       </figcaption>
     </figure>

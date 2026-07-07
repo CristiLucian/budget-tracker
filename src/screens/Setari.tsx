@@ -4,7 +4,7 @@ import type { AppState } from "../types";
 import type { Action } from "../state";
 import { nextPeriodCandidate, prevPeriodCandidate, transactionCount } from "../state";
 import { formatLei } from "../lib/money";
-import { effectiveIncome } from "../lib/budget";
+import { computeBalances } from "../lib/budget";
 import { buildPeriodCsv, downloadFile } from "../lib/csv";
 import { exportExcel } from "../lib/xlsx";
 import { isSavingsCategory } from "../lib/categories";
@@ -36,6 +36,7 @@ export default function Setari({
   const [exporting, setExporting] = useState(false);
 
   const periodsDesc = [...state.periods].reverse();
+  const balances = computeBalances(state);
   const categories = [...state.settings.categories].sort((a, b) => a.order - b.order);
   const nextCandidate = nextPeriodCandidate(state);
   const prevCandidate = prevPeriodCandidate(state);
@@ -54,7 +55,7 @@ export default function Setari({
     if (!period) return;
     downloadFile(
       `buget-${period.id}.csv`,
-      buildPeriodCsv(period, state.settings.categories),
+      buildPeriodCsv(state, period),
       "text/csv;charset=utf-8"
     );
   }
@@ -133,8 +134,8 @@ export default function Setari({
       <section className="settings-section">
         <h2>Perioade și venit</h2>
         <p className="muted">
-          Venitul unei luni = salariu + alte venituri + report din luna trecută.
-          Apasă o lună ca să îl editezi.
+          Banii unei luni = salariu + alte venituri, plus soldul reportat din
+          luna trecută (dacă activezi reportul). Apasă o lună ca să editezi.
         </p>
         <div className="period-add-row">
           {nextCandidate && (
@@ -165,7 +166,9 @@ export default function Setari({
             <li key={p.id}>
               <button className="budget-row budget-row--btn" onClick={() => setEditingPeriodId(p.id)}>
                 <span className="budget-row__name">{p.name}</span>
-                <span className="budget-row__amount">{formatLei(effectiveIncome(p))}</span>
+                <span className="budget-row__amount">
+                  {formatLei(balances.get(p.id)?.available ?? 0)}
+                </span>
                 <span className="budget-row__edit" aria-hidden="true">✎</span>
               </button>
             </li>

@@ -3,7 +3,7 @@ import type { AppState } from "../types";
 import { categoryName } from "../state";
 import { formatLei, sumAmounts } from "../lib/money";
 import { savingsIdSet, savingsOf, spendingOf } from "../lib/categories";
-import { effectiveIncome } from "../lib/budget";
+import { actualIncome, computeBalances } from "../lib/budget";
 import { categoryEmoji } from "../lib/icons";
 import { MONTHS_RO } from "../lib/period";
 import { MiniBars, PairBars, PercentLine } from "../components/charts";
@@ -26,7 +26,10 @@ export default function Statistici({
   currentPeriodId: string | undefined;
 }) {
   const periods = state.periods;
-  const withData = periods.filter((p) => p.transactions.length > 0 || effectiveIncome(p) > 0);
+  const balances = useMemo(() => computeBalances(state), [state]);
+  const withData = periods.filter(
+    (p) => p.transactions.length > 0 || (balances.get(p.id)?.available ?? 0) > 0
+  );
   const [selectedCat, setSelectedCat] = useState<string>("alimente");
 
   const stats = useMemo(() => {
@@ -39,18 +42,23 @@ export default function Statistici({
       const cheltuit = sumAmounts(p.transactions);
       const spending = spendingOf(p.transactions, savingsIds);
       const savings = savingsOf(p.transactions, savingsIds);
-      const income = effectiveIncome(p); // salariu + alte venituri + report
+      // Report (carry-in) is deliberately kept OUT of income: it's last
+      // month's money, already counted as income once. It only widens the
+      // amount available to spend.
+      const venit = actualIncome(p); // salariu + alte venituri
+      const bal = balances.get(p.id) ?? { carryIn: 0, available: venit, leftover: 0 };
       return {
         id: p.id,
         name: p.name,
         label: shortPeriodLabel(p.id),
-        disponibil: income,
+        venit,
+        report: bal.carryIn,
+        disponibil: bal.available, // venit + report
         cheltuit, // total outflow incl. savings (for the vs-budget chart)
         spending, // real spending, excl. savings
         savings,
-        ramas: income - cheltuit,
-        // % of income not spent on real expenses (leftover + savings)
-        rata: income > 0 ? ((income - spending) / income) * 100 : 0,
+        // % of real income not spent on real expenses (leftover + savings)
+        rata: venit > 0 ? ((venit - spending) / venit) * 100 : 0,
         txCount: p.transactions.length
       };
     });
@@ -124,7 +132,7 @@ export default function Statistici({
         periodName: current.name,
         dailyRate,
         projected: dailyRate * daysTotal,
-        budget: effectiveIncome(current),
+        budget: balances.get(current.id)?.available ?? actualIncome(current),
         daysLeft: Math.max(0, Math.round(daysTotal - daysElapsed))
       };
     }
@@ -147,7 +155,7 @@ export default function Statistici({
       projection,
       busiest
     };
-  }, [state, periods, withData, currentPeriodId]);
+  }, [state, periods, withData, balances, currentPeriodId]);
 
   if (stats.perPeriod.length === 0) {
     return (
@@ -227,10 +235,13 @@ export default function Statistici({
         <PairBars
           data={stats.perPeriod.map((p) => ({
             label: p.label,
-            a: p.disponibil,
+            // negative carry shrinks the bar; positive carry stacks on top
+            a: Math.max(0, p.report < 0 ? p.venit + p.report : p.venit),
+            aExtra: Math.max(0, p.report),
             b: p.cheltuit
           }))}
-          aLabel="Disponibil"
+          aLabel="Venit"
+          aExtraLabel="Report"
           bLabel="Cheltuit"
         />
       </section>
@@ -238,8 +249,8 @@ export default function Statistici({
       <section className="stat-card">
         <h2>Rata de economisire</h2>
         <p className="muted">
-          Cât la sută din venitul disponibil nu a mers pe cheltuieli reale
-          (economii puse deoparte + ce a rămas).
+          Cât la sută din venitul lunii (salariu + alte venituri, fără report)
+          nu a mers pe cheltuieli reale (economii puse deoparte + ce a rămas).
         </p>
         <PercentLine
           data={stats.perPeriod.map((p) => ({ label: p.label, value: p.rata }))}

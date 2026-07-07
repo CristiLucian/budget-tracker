@@ -1,6 +1,7 @@
 import type { AppState, Period } from "../types";
 import { sumAmounts } from "./money";
-import { effectiveIncome } from "./budget";
+import { actualIncome, computeBalances, type PeriodBalance } from "./budget";
+import { savingsIdSet, spendingOf } from "./categories";
 
 const MONEY_FMT = '#,##0.00 "lei"';
 
@@ -18,11 +19,18 @@ export async function exportExcel(state: AppState): Promise<void> {
 
   const categories = [...state.settings.categories].sort((a, b) => a.order - b.order);
   const catName = (id: string) => categories.find((c) => c.id === id)?.name ?? id;
+  const balances = computeBalances(state);
+  const savingsIds = savingsIdSet(state);
 
   // ---- Sumar ----
+  // Venit (salariu + alte venituri) and Report (sold reportat) are separate
+  // columns: the carry-over is not income, so the savings rate is computed
+  // on real income only.
   const sumar = wb.addWorksheet("Sumar");
   sumar.columns = [
     { header: "Perioadă", key: "name", width: 18 },
+    { header: "Venit", key: "venit", width: 16 },
+    { header: "Report", key: "report", width: 14 },
     { header: "Buget disponibil", key: "disp", width: 18 },
     { header: "Buget cheltuit", key: "chelt", width: 18 },
     { header: "Buget rămas", key: "ramas", width: 18 },
@@ -31,25 +39,28 @@ export async function exportExcel(state: AppState): Promise<void> {
   sumar.getRow(1).font = { bold: true };
   for (const p of state.periods) {
     const cheltuit = sumAmounts(p.transactions);
-    const disp = effectiveIncome(p);
-    const ramas = disp - cheltuit;
+    const venit = actualIncome(p);
+    const spending = spendingOf(p.transactions, savingsIds);
+    const bal = balances.get(p.id)!;
     const row = sumar.addRow({
       name: p.name,
-      disp,
+      venit,
+      report: bal.carryIn,
+      disp: bal.available,
       chelt: cheltuit,
-      ramas,
-      rata: disp > 0 ? ramas / disp : 0
+      ramas: bal.leftover,
+      rata: venit > 0 ? (venit - spending) / venit : 0
     });
-    row.getCell("disp").numFmt = MONEY_FMT;
-    row.getCell("chelt").numFmt = MONEY_FMT;
-    row.getCell("ramas").numFmt = MONEY_FMT;
+    for (const key of ["venit", "report", "disp", "chelt", "ramas"]) {
+      row.getCell(key).numFmt = MONEY_FMT;
+    }
     row.getCell("rata").numFmt = "0.0%";
-    if (ramas < 0) row.getCell("ramas").font = { color: { argb: "FFDC2626" } };
+    if (bal.leftover < 0) row.getCell("ramas").font = { color: { argb: "FFDC2626" } };
   }
 
   // ---- One sheet per period (old sheet layout) ----
   for (const p of state.periods) {
-    addPeriodSheet(wb, p, categories, catName);
+    addPeriodSheet(wb, p, categories, catName, balances.get(p.id)!);
   }
 
   // ---- Flat transactions ----
@@ -95,7 +106,8 @@ function addPeriodSheet(
   wb: import("exceljs").Workbook,
   period: Period,
   categories: { id: string; name: string }[],
-  catName: (id: string) => string
+  catName: (id: string) => string,
+  bal: PeriodBalance
 ): void {
   // Worksheet names: max 31 chars, no []*?/\:
   const ws = wb.addWorksheet(period.name.slice(0, 31));
@@ -128,11 +140,16 @@ function addPeriodSheet(
 
   ws.addRow([]);
   const cheltuit = sumAmounts(period.transactions);
-  const disponibil = effectiveIncome(period);
   const rows: [string, number][] = [
-    ["Buget disponibil", disponibil],
+    ...(bal.carryIn !== 0
+      ? ([
+          ["Venit", actualIncome(period)],
+          ["Report din luna trecută", bal.carryIn]
+        ] as [string, number][])
+      : []),
+    ["Buget disponibil", bal.available],
     ["Buget cheltuit", cheltuit],
-    ["Buget rămas", disponibil - cheltuit]
+    ["Buget rămas", bal.leftover]
   ];
   for (const [label, value] of rows) {
     const r = ws.addRow([label, value]);

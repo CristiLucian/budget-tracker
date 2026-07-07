@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { onAuthStateChanged, signOut, type User } from "firebase/auth";
 import { getFirebaseAuth, isFirebaseConfigured } from "./firebase";
 import type { AppState } from "./types";
-import { emptyState, ensureCurrentPeriod, reducer, type Action } from "./state";
+import { emptyState, ensureCurrentPeriod, normalizeState, reducer, type Action } from "./state";
 import type { DataAdapter } from "./data/adapter";
 import { persistDiff } from "./data/adapter";
 import { LocalAdapter } from "./data/local";
@@ -120,7 +120,7 @@ function Shell({
   /** Bulk replace (seed import / backup restore / migration). */
   const importState = useCallback(
     async (incoming: AppState) => {
-      const next = ensureCurrentPeriod(incoming, new Date());
+      const next = ensureCurrentPeriod(normalizeState(incoming), new Date());
       apply(next);
       await adapter.importAll(next);
     },
@@ -131,8 +131,9 @@ function Shell({
   useEffect(() => {
     const unsub = adapter.subscribe(
       (remote) => {
-        if (stableStringify(remote) !== stableStringify(stateRef.current)) {
-          apply(remote);
+        const incoming = normalizeState(remote);
+        if (stableStringify(incoming) !== stableStringify(stateRef.current)) {
+          apply(incoming);
         }
       },
       () => {

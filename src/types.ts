@@ -24,7 +24,11 @@ export type Period = {
   end: string; // start of next period (exclusive)
   budgetAvailable: number; // base income for the period (salariu)
   extraIncome?: number; // other income (alte venituri)
-  carryIn?: number; // amount rolled in from the previous month (per-month, optional)
+  // Opt-in carry-over: when true, this period's opening balance is the
+  // previous period's closing balance (computed, always in sync).
+  carryEnabled?: boolean;
+  /** @deprecated manual carry amount; migrated to carryEnabled by normalizeState */
+  carryIn?: number;
   transactions: Transaction[];
 };
 

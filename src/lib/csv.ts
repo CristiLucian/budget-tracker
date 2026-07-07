@@ -1,6 +1,6 @@
-import type { Category, Period } from "../types";
+import type { AppState, Period } from "../types";
 import { formatNumber, sumAmounts } from "./money";
-import { effectiveIncome } from "./budget";
+import { actualIncome, periodBalance } from "./budget";
 
 const SEP = ";"; // Excel with Romanian regional settings expects ; when decimal is ,
 
@@ -16,8 +16,8 @@ function csvCell(value: string): string {
  * each transaction as an amount in its category's column, totals at the
  * bottom, then the three summary numbers. Romanian decimal comma.
  */
-export function buildPeriodCsv(period: Period, categories: Category[]): string {
-  const ordered = [...categories].sort((a, b) => a.order - b.order);
+export function buildPeriodCsv(state: AppState, period: Period): string {
+  const ordered = [...state.settings.categories].sort((a, b) => a.order - b.order);
   // Only keep columns that ever existed in the sheet sense: all categories,
   // so the layout stays stable across periods.
   const columns = ordered;
@@ -59,10 +59,14 @@ export function buildPeriodCsv(period: Period, categories: Category[]): string {
   rows.push("");
 
   const cheltuit = sumAmounts(period.transactions);
-  const disponibil = effectiveIncome(period);
-  rows.push([csvCell("Buget disponibil"), formatNumber(disponibil)].join(SEP));
+  const bal = periodBalance(state, period.id);
+  if (bal.carryIn !== 0) {
+    rows.push([csvCell("Venit"), formatNumber(actualIncome(period))].join(SEP));
+    rows.push([csvCell("Report din luna trecuta"), formatNumber(bal.carryIn)].join(SEP));
+  }
+  rows.push([csvCell("Buget disponibil"), formatNumber(bal.available)].join(SEP));
   rows.push([csvCell("Buget cheltuit"), formatNumber(cheltuit)].join(SEP));
-  rows.push([csvCell("Buget ramas"), formatNumber(disponibil - cheltuit)].join(SEP));
+  rows.push([csvCell("Buget ramas"), formatNumber(bal.leftover)].join(SEP));
 
   // BOM so Excel opens it as UTF-8; CRLF line endings for Excel.
   return "﻿" + rows.join("\r\n") + "\r\n";

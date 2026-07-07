@@ -35,6 +35,27 @@ export function emptyState(): AppState {
   };
 }
 
+/**
+ * Upgrade legacy stored data where the carry-over was a manual amount
+ * (carryIn) to the computed model (carryEnabled). Applied to every state
+ * entering the app: local storage, cloud snapshots, backup imports.
+ */
+export function normalizeState(state: AppState): AppState {
+  if (!state.periods.some((p) => p.carryIn !== undefined)) return state;
+  return {
+    ...state,
+    periods: state.periods.map((p) => {
+      if (p.carryIn === undefined) return p;
+      const next: Period = {
+        ...p,
+        carryEnabled: p.carryEnabled || p.carryIn !== 0 || undefined
+      };
+      delete next.carryIn;
+      return next;
+    })
+  };
+}
+
 /** Add the period containing `now` if no existing period covers it. */
 export function ensureCurrentPeriod(state: AppState, now: Date): AppState {
   if (findPeriodForDate(state.periods, now)) return state;
@@ -75,7 +96,7 @@ export type Action =
   | { type: "deleteTransaction"; periodId: string; transactionId: string }
   | { type: "setBudgetAvailable"; periodId: string; amount: number }
   | { type: "setExtraIncome"; periodId: string; amount: number }
-  | { type: "setCarryIn"; periodId: string; amount: number }
+  | { type: "setCarryEnabled"; periodId: string; enabled: boolean }
   | { type: "setMonthStartDay"; day: number }
   | { type: "addCategory"; name: string }
   | { type: "renameCategory"; id: string; name: string }
@@ -157,11 +178,12 @@ export function reducer(state: AppState, action: Action): AppState {
         extraIncome: action.amount || undefined
       }));
 
-    case "setCarryIn":
-      return mapPeriod(state, action.periodId, (p) => ({
-        ...p,
-        carryIn: action.amount || undefined
-      }));
+    case "setCarryEnabled":
+      return mapPeriod(state, action.periodId, (p) => {
+        const next: Period = { ...p, carryEnabled: action.enabled || undefined };
+        delete next.carryIn; // drop any legacy manual amount
+        return next;
+      });
 
     case "setMonthStartDay":
       return {

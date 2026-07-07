@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { AppState, Period } from "../types";
 import type { Action } from "../state";
 import { formatLei, formatNumber, parseMoney, sanitizeAmountInput } from "../lib/money";
-import { suggestedCarryIn } from "../lib/budget";
+import { previousBalance } from "../lib/budget";
 
 function toDraft(n: number | undefined): string {
   if (!n) return "";
@@ -10,9 +10,9 @@ function toDraft(n: number | undefined): string {
 }
 
 /**
- * Per-period income editor: salariu + alte venituri + report din luna
- * trecută (optional, with a one-tap suggestion). All three add up to the
- * money available for the month.
+ * Per-period income editor: salariu + alte venituri, plus the carry-over
+ * toggle. The carried amount itself is computed (previous period's closing
+ * balance), so it stays correct even when past months change later.
  */
 export default function BudgetEditor({
   state,
@@ -27,30 +27,29 @@ export default function BudgetEditor({
 }) {
   const [salary, setSalary] = useState(toDraft(period.budgetAvailable));
   const [extra, setExtra] = useState(toDraft(period.extraIncome));
-  const [carry, setCarry] = useState(toDraft(period.carryIn));
+  const [carryOn, setCarryOn] = useState(!!period.carryEnabled);
   const [error, setError] = useState<string | null>(null);
 
-  const suggestion = suggestedCarryIn(state, period.id);
-  const carryNum = parseMoney(carry, true) ?? 0;
-  const carryApplied = suggestion !== 0 && Math.abs(carryNum - suggestion) < 0.005;
-
-  const setCarryNum = (n: number) =>
-    setCarry((n < 0 ? "-" : "") + toDraft(Math.abs(n)));
+  const prev = previousBalance(state, period.id);
+  const carryValue = carryOn && prev ? prev.leftover : 0;
 
   const preview =
-    (parseMoney(salary) ?? 0) + (parseMoney(extra) ?? 0) + carryNum;
+    (parseMoney(salary) ?? 0) + (parseMoney(extra) ?? 0) + carryValue;
 
   function save() {
     const s = parseMoney(salary);
     const e = parseMoney(extra);
-    const c = parseMoney(carry, true);
-    if (s === null || e === null || c === null) {
+    if (s === null || e === null) {
       setError("Sumă invalidă");
       return;
     }
     dispatch({ type: "setBudgetAvailable", periodId: period.id, amount: s });
     dispatch({ type: "setExtraIncome", periodId: period.id, amount: e });
-    dispatch({ type: "setCarryIn", periodId: period.id, amount: c });
+    dispatch({
+      type: "setCarryEnabled",
+      periodId: period.id,
+      enabled: carryOn && prev !== null
+    });
     onClose();
   }
 
@@ -92,37 +91,30 @@ export default function BudgetEditor({
             />
           </label>
 
-          <label className="field">
-            <span className="field__label">Report din luna trecută</span>
-            <input
-              className="input"
-              inputMode="decimal"
-              value={carry}
-              onChange={(e) => {
-                // allow a leading minus for a carried-over deficit
-                const raw = e.target.value.trim();
-                const neg = raw.startsWith("-");
-                setCarry((neg ? "-" : "") + sanitizeAmountInput(raw));
-                setError(null);
-              }}
-            />
-          </label>
-          <div className="carry-actions">
-            {suggestion !== 0 && !carryApplied && (
-              <button
-                type="button"
-                className="carry-suggest"
-                onClick={() => setCarryNum(suggestion)}
-              >
-                ↩ Reportează soldul lunii trecute: {formatLei(suggestion)}
-              </button>
-            )}
-            {carryNum !== 0 && (
-              <button type="button" className="carry-remove" onClick={() => setCarry("")}>
-                ✕ Elimină reportul
-              </button>
-            )}
-          </div>
+          {prev && (
+            <div className="field">
+              <span className="field__label">Report din {prev.period.name}</span>
+              <label className={`carry-toggle ${carryOn ? "is-on" : ""}`}>
+                <input
+                  type="checkbox"
+                  checked={carryOn}
+                  onChange={(e) => setCarryOn(e.target.checked)}
+                />
+                <span className="carry-toggle__text">
+                  Preia soldul rămas:{" "}
+                  <strong className={prev.leftover < 0 ? "negative" : ""}>
+                    {formatLei(prev.leftover)}
+                  </strong>
+                </span>
+              </label>
+              {carryOn && (
+                <p className="carry-toggle__hint">
+                  Suma se recalculează automat dacă modifici tranzacții sau
+                  venituri în {prev.period.name}.
+                </p>
+              )}
+            </div>
+          )}
 
           {error && <div className="field-error">{error}</div>}
 

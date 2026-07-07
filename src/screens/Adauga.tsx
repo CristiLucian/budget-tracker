@@ -3,7 +3,7 @@ import type { AppState, Period } from "../types";
 import type { Action } from "../state";
 import { transactionCount } from "../state";
 import { formatLei, parseAmount, sanitizeAmountInput, sumAmounts } from "../lib/money";
-import { effectiveIncome } from "../lib/budget";
+import { periodBalance } from "../lib/budget";
 import { uuid } from "../lib/id";
 import { categoryEmoji } from "../lib/icons";
 import { dateInPeriod } from "../lib/period";
@@ -47,7 +47,7 @@ export default function Adauga({
   const activeCategory = categories.find((c) => c.id === activeCategoryId) ?? null;
   const isEmpty = transactionCount(state) === 0;
 
-  const available = period ? effectiveIncome(period) : 0;
+  const available = period ? periodBalance(state, period.id).available : 0;
   const cheltuit = period ? sumAmounts(period.transactions) : 0;
   const ramas = available - cheltuit;
   const pct = available > 0 ? Math.min(100, (cheltuit / available) * 100) : cheltuit > 0 ? 100 : 0;

@@ -3,7 +3,7 @@ import type { AppState, Period } from "../types";
 import type { Action } from "../state";
 import { formatLei, sumAmounts } from "../lib/money";
 import { savingsIdSet, savingsOf, spendingOf } from "../lib/categories";
-import { effectiveIncome } from "../lib/budget";
+import { computeBalances } from "../lib/budget";
 import { categoryEmoji } from "../lib/icons";
 import PeriodPicker from "../components/PeriodPicker";
 import BudgetEditor from "../components/BudgetEditor";
@@ -36,9 +36,14 @@ export default function Dashboard({
   }
 
   const cheltuit = sumAmounts(period.transactions);
-  const available = effectiveIncome(period); // salariu + alte venituri + report
-  const hasBreakdown = (period.extraIncome ?? 0) !== 0 || (period.carryIn ?? 0) !== 0;
-  const ramas = available - cheltuit;
+  const bal = computeBalances(state).get(period.id) ?? {
+    carryIn: 0,
+    available: 0,
+    leftover: 0
+  };
+  const available = bal.available; // venit real + report calculat
+  const hasBreakdown = (period.extraIncome ?? 0) !== 0 || bal.carryIn !== 0;
+  const ramas = bal.leftover;
   const savingsIds = savingsIdSet(state);
   const savings = savingsOf(period.transactions, savingsIds);
   const spending = spendingOf(period.transactions, savingsIds);
@@ -119,8 +124,8 @@ export default function Dashboard({
               <span className="hero__stat-note">
                 salariu {formatLei(period.budgetAvailable)}
                 {(period.extraIncome ?? 0) !== 0 && ` · alte ${formatLei(period.extraIncome!)}`}
-                {(period.carryIn ?? 0) !== 0 &&
-                  ` · report ${period.carryIn! < 0 ? "−" : "+"}${formatLei(Math.abs(period.carryIn!))}`}
+                {bal.carryIn !== 0 &&
+                  ` · report ${bal.carryIn < 0 ? "−" : "+"}${formatLei(Math.abs(bal.carryIn))}`}
               </span>
             )}
           </span>
@@ -133,6 +138,11 @@ export default function Dashboard({
           <div className="hero__breakdown">
             <span>🛒 Cheltuieli reale: {formatLei(spending)}</span>
             <span>💰 Economii: {formatLei(savings)}</span>
+          </div>
+        )}
+        {bal.carriedTo && (
+          <div className="hero__carryout">
+            ↪ Soldul rămas se reportează în {bal.carriedTo}
           </div>
         )}
       </button>

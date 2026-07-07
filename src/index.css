@@ -1276,6 +1276,12 @@ h3 {
   fill: var(--chart-a);
 }
 
+/* Report (carry-over) segment stacked on top of the income bar. */
+.chart__bar-a2 {
+  fill: var(--chart-a);
+  opacity: 0.45;
+}
+
 .chart__bar-b {
   fill: var(--chart-b);
 }
@@ -1336,6 +1342,11 @@ h3 {
 
 .dot--a {
   background: var(--chart-a);
+}
+
+.dot--a2 {
+  background: var(--chart-a);
+  opacity: 0.45;
 }
 
 .dot--b {
@@ -1766,6 +1777,16 @@ h3 {
   font-weight: 600;
 }
 
+/* Note in the source month: its leftover flows into the next period. */
+.hero__carryout {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  font-size: 0.85rem;
+  font-weight: 600;
+  opacity: 0.9;
+}
+
 /* --- Istoric: cards on mobile, table on desktop --- */
 .istoric-table-wrap { display: none; }
 @media (min-width: 900px) {
@@ -2002,19 +2023,34 @@ h3 {
 }
 .sheet__subtitle { color: var(--muted); font-weight: 500; font-size: 0.9rem; }
 
-/* --- Budget editor --- */
-.carry-suggest {
-  display: block;
-  width: 100%;
-  text-align: left;
-  margin: -4px 0 14px;
-  padding: 9px 12px;
+/* --- Budget editor: carry-over toggle --- */
+.carry-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
   border: 1px dashed var(--border-strong);
   border-radius: 10px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+.carry-toggle.is-on {
+  border-style: solid;
   background: var(--primary-soft);
   color: var(--primary-ink);
-  font-weight: 600;
-  font-size: 0.86rem;
+}
+.carry-toggle input {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  accent-color: var(--primary-ink);
+}
+.carry-toggle strong { font-variant-numeric: tabular-nums; }
+.carry-toggle strong.negative { color: var(--danger); }
+.carry-toggle__hint {
+  margin: 6px 2px 0;
+  font-size: 0.82rem;
+  color: var(--muted);
 }
 .budget-editor__total {
   display: flex;
@@ -2143,19 +2179,6 @@ h3 {
   color: var(--muted);
 }
 .budget-card__meta b { color: var(--ink); font-variant-numeric: tabular-nums; }
-
-/* --- Budget editor: carry actions --- */
-.carry-actions { display: flex; flex-direction: column; gap: 8px; margin: -4px 0 14px; }
-.carry-remove {
-  align-self: flex-start;
-  border: none;
-  background: none;
-  padding: 4px 2px;
-  color: var(--danger);
-  font-weight: 600;
-  font-size: 0.85rem;
-}
-.carry-remove:hover { text-decoration: underline; }
 
 /* --- Dashboard: tappable hero --- */
 .hero--btn { cursor: pointer; text-align: left; }
