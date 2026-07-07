@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { AppState, Period } from "../types";
 import type { Action } from "../state";
-import { transactionCount } from "../state";
+import { categoryName, transactionCount } from "../state";
 import { formatLei, parseAmount, sanitizeAmountInput, sumAmounts } from "../lib/money";
 import { periodBalance } from "../lib/budget";
 import { uuid } from "../lib/id";
 import { categoryEmoji } from "../lib/icons";
 import { dateInPeriod } from "../lib/period";
+import { shortDate, sortNewestFirst } from "../lib/transactions";
 import { loadState } from "../storage";
 import PeriodPicker from "../components/PeriodPicker";
 import BudgetEditor from "../components/BudgetEditor";
@@ -18,7 +19,8 @@ export default function Adauga({
   currentPeriod,
   showToast,
   importState,
-  cloudMode
+  cloudMode,
+  goToIstoric
 }: {
   state: AppState;
   dispatch: (a: Action) => void;
@@ -27,6 +29,7 @@ export default function Adauga({
   goToSettings: () => void;
   importState: (s: AppState) => Promise<void>;
   cloudMode: boolean;
+  goToIstoric: (periodId: string) => void;
 }) {
   const [selectedPeriodId, setSelectedPeriodId] = useState<string>(currentPeriod?.id ?? "");
   const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
@@ -53,6 +56,11 @@ export default function Adauga({
   const pct = available > 0 ? Math.min(100, (cheltuit / available) * 100) : cheltuit > 0 ? 100 : 0;
   // Warn (red) once you're near or over the budget.
   const over = ramas < 0 || (available > 0 && pct >= 90);
+
+  const recent = useMemo(
+    () => (period ? sortNewestFirst(period.transactions).slice(0, 10) : []),
+    [period]
+  );
 
   const localData = useMemo(() => {
     if (!cloudMode || !isEmpty) return null;
@@ -182,6 +190,41 @@ export default function Adauga({
           </button>
         ))}
       </div>
+
+      {period && recent.length > 0 && (
+        <section className="recent-tx">
+          <h2 className="recent-tx__title">Ultimele tranzacții</h2>
+          <ul className="tx-list">
+            {recent.map((t) => (
+              <li key={t.id}>
+                <button
+                  className="tx"
+                  onClick={() => goToIstoric(period.id)}
+                  aria-label={`${categoryName(state, t.categoryId)}: ${formatLei(t.amount)} — vezi în Istoric`}
+                >
+                  <span className="tx__emoji" aria-hidden="true">
+                    {categoryEmoji(t.categoryId)}
+                  </span>
+                  <span className="tx__main">
+                    <span className="tx__cat">{categoryName(state, t.categoryId)}</span>
+                    <span className="tx__sub">
+                      {shortDate(t.timestamp)}
+                      {t.note ? ` · ${t.note}` : ""}
+                    </span>
+                  </span>
+                  <span className="tx__amount">{formatLei(t.amount)}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+          <button
+            className="btn btn--block recent-tx__more"
+            onClick={() => goToIstoric(period.id)}
+          >
+            Vezi toate tranzacțiile din {period.name} ({period.transactions.length}) →
+          </button>
+        </section>
+      )}
 
       {activeCategory && period && (
         <>

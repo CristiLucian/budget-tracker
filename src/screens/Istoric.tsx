@@ -2,8 +2,9 @@ import { useState } from "react";
 import type { AppState, Period, Transaction } from "../types";
 import type { Action } from "../state";
 import { categoryName } from "../state";
-import { formatLei, parseAmount, sanitizeAmountInput, sumAmounts } from "../lib/money";
+import { formatLei, parseAmount, parseMoney, sanitizeAmountInput, sumAmounts } from "../lib/money";
 import { dateInPeriod, findPeriodForDate } from "../lib/period";
+import { shortDate, sortNewestFirst } from "../lib/transactions";
 import { categoryEmoji } from "../lib/icons";
 import { uuid } from "../lib/id";
 import PeriodPicker from "../components/PeriodPicker";
@@ -15,11 +16,13 @@ function toLocalInputValue(iso: string): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-function shortDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("ro-RO", { day: "2-digit", month: "2-digit" });
-}
-
 type View = "categorii" | "cronologic";
+
+/** Case- and diacritic-insensitive text for search matching. */
+function fold(s: string): string {
+  const NFD = s.toLowerCase().normalize("NFD");
+  return NFD.replace(new RegExp("[\\u0300-\\u036f]", "g"), "");
+}
 
 export default function Istoric({
   state,
@@ -39,7 +42,11 @@ export default function Istoric({
   showToast: (t: ToastMessage) => void;
 }) {
   const [view, setView] = useState<View>("categorii");
+  const [query, setQuery] = useState("");
   const [editing, setEditing] = useState<Transaction | null>(null);
+  // The period the edited transaction lives in — can differ from the
+  // selected period when editing straight from a search result.
+  const [editingPeriodId, setEditingPeriodId] = useState<string>("");
   const [isNew, setIsNew] = useState(false);
   const [amount, setAmount] = useState("");
   const [catId, setCatId] = useState("");
@@ -56,16 +63,11 @@ export default function Istoric({
     );
   }
 
-  const filtered = period.transactions
-    .map((t, i) => ({ t, i }))
-    .filter(({ t }) => !categoryFilter || t.categoryId === categoryFilter);
+  const filtered = period.transactions.filter(
+    (t) => !categoryFilter || t.categoryId === categoryFilter
+  );
 
-  const chronological = [...filtered]
-    .sort((a, b) => {
-      const cmp = b.t.timestamp.localeCompare(a.t.timestamp);
-      return cmp !== 0 ? cmp : b.i - a.i;
-    })
-    .map(({ t }) => t);
+  const chronological = sortNewestFirst(filtered);
 
   // Grouped view: categories in settings order, then orphans.
   const knownOrder = new Map(
@@ -73,24 +75,19 @@ export default function Istoric({
       .sort((a, b) => a.order - b.order)
       .map((c, i) => [c.id, i])
   );
-  const groupIds = [...new Set(filtered.map(({ t }) => t.categoryId))].sort((a, b) => {
+  const groupIds = [...new Set(filtered.map((t) => t.categoryId))].sort((a, b) => {
     const ia = knownOrder.get(a) ?? 999;
     const ib = knownOrder.get(b) ?? 999;
     return ia - ib || a.localeCompare(b);
   });
   const groups = groupIds.map((id) => {
-    const txs = filtered
-      .filter(({ t }) => t.categoryId === id)
-      .sort((a, b) => {
-        const cmp = b.t.timestamp.localeCompare(a.t.timestamp);
-        return cmp !== 0 ? cmp : b.i - a.i;
-      })
-      .map(({ t }) => t);
+    const txs = sortNewestFirst(filtered.filter((t) => t.categoryId === id));
     return { id, name: categoryName(state, id), txs, total: sumAmounts(txs) };
   });
 
-  function startEdit(t: Transaction) {
+  function startEdit(t: Transaction, sourcePeriodId?: string) {
     setIsNew(false);
+    setEditingPeriodId(sourcePeriodId ?? period!.id);
     setEditing(t);
     setAmount(String(t.amount).replace(".", ","));
     setCatId(t.categoryId);
@@ -113,6 +110,7 @@ export default function Istoric({
       .sort((a, b) => a.order - b.order)
       .find((c) => !c.archived);
     setIsNew(true);
+    setEditingPeriodId(period.id);
     setEditing({
       id: uuid(),
       categoryId: categoryFilter ?? firstActive?.id ?? "",
@@ -159,29 +157,98 @@ export default function Istoric({
     const home = findPeriodForDate(state.periods, date);
     dispatch({
       type: "updateTransaction",
-      periodId: period.id,
+      periodId: editingPeriodId,
       transaction: updated,
-      newPeriodId: home && home.id !== period.id ? home.id : undefined
+      newPeriodId: home && home.id !== editingPeriodId ? home.id : undefined
     });
     setEditing(null);
     showToast({ text: "Tranzacție salvată" });
   }
 
   function deleteEditing() {
-    if (!editing || !period) return;
-    const name = categoryName(state, editing.categoryId);
-    if (!window.confirm(`Ștergi tranzacția ${name} · ${formatLei(editing.amount)}?`)) return;
-    dispatch({ type: "deleteTransaction", periodId: period.id, transactionId: editing.id });
+    if (!editing) return;
+    const deleted = editing;
+    const homeId = editingPeriodId;
+    dispatch({ type: "deleteTransaction", periodId: homeId, transactionId: deleted.id });
     setEditing(null);
-    showToast({ text: "Tranzacție ștearsă" });
+    showToast({
+      text: "Tranzacție ștearsă",
+      detail: `${categoryName(state, deleted.categoryId)} · ${formatLei(deleted.amount)}`,
+      durationMs: 6000,
+      action: {
+        label: "Anulează",
+        run: () =>
+          dispatch({ type: "addTransaction", periodId: homeId, transaction: deleted })
+      }
+    });
   }
 
   const categories = [...state.settings.categories].sort((a, b) => a.order - b.order);
+
+  // Cross-month search: matches the note, the category name (both
+  // diacritic-insensitive) or an exact amount ("45,50").
+  const q = query.trim();
+  const qFold = fold(q);
+  const qNum = q ? parseMoney(q) : null;
+  const searchResults = q
+    ? state.periods
+        .flatMap((p) =>
+          p.transactions
+            .filter(
+              (t) =>
+                fold(t.note ?? "").includes(qFold) ||
+                fold(categoryName(state, t.categoryId)).includes(qFold) ||
+                (qNum !== null && qNum > 0 && Math.abs(t.amount - qNum) < 0.005)
+            )
+            .map((t) => ({ t, periodId: p.id, periodName: p.name }))
+        )
+        .sort((a, b) => Date.parse(b.t.timestamp) - Date.parse(a.t.timestamp))
+    : [];
 
   return (
     <div className="istoric">
       <header className="screen-header"><h1>Istoric</h1></header>
 
+      <div className="istoric-search">
+        <input
+          className="input"
+          type="search"
+          placeholder="Caută în toate lunile — notă, categorie sau sumă"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          aria-label="Caută tranzacții în toate lunile"
+        />
+      </div>
+
+      {q ? (
+        <div className="search-results">
+          <p className="muted">
+            {searchResults.length === 0
+              ? "Niciun rezultat."
+              : `${searchResults.length} ${searchResults.length === 1 ? "rezultat" : "rezultate"} în toate lunile${searchResults.length > 50 ? " — primele 50" : ""}`}
+          </p>
+          <ul className="tx-list">
+            {searchResults.slice(0, 50).map(({ t, periodId, periodName }) => (
+              <li key={t.id}>
+                <button className="tx" onClick={() => startEdit(t, periodId)}>
+                  <span className="tx__emoji" aria-hidden="true">
+                    {categoryEmoji(t.categoryId)}
+                  </span>
+                  <span className="tx__main">
+                    <span className="tx__cat">{categoryName(state, t.categoryId)}</span>
+                    <span className="tx__sub">
+                      {periodName} · {shortDate(t.timestamp)}
+                      {t.note ? ` · ${t.note}` : ""}
+                    </span>
+                  </span>
+                  <span className="tx__amount">{formatLei(t.amount)}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : (
+        <>
       <PeriodPicker periods={state.periods} period={period} onSelect={onSelectPeriod} />
 
       <div className="istoric-bar">
@@ -322,6 +389,8 @@ export default function Istoric({
           </table>
         )}
       </div>
+        </>
+      )}
 
       {editing && (
         <>

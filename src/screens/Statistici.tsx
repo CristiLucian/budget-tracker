@@ -51,6 +51,7 @@ export default function Statistici({
         id: p.id,
         name: p.name,
         label: shortPeriodLabel(p.id),
+        salariu: p.budgetAvailable || 0,
         venit,
         report: bal.carryIn,
         disponibil: bal.available, // venit + report
@@ -140,6 +141,49 @@ export default function Statistici({
     // Busiest month by number of transactions
     const busiest = [...perPeriod].sort((a, b) => b.txCount - a.txCount)[0];
 
+    // Salary evolution — venitul de bază only (no extra income, no carry).
+    const salaryMonths = perPeriod.filter((p) => p.salariu > 0);
+    const avgSalary =
+      salaryMonths.length > 0
+        ? salaryMonths.reduce((s, p) => s + p.salariu, 0) / salaryMonths.length
+        : 0;
+    const maxSalaryMonth =
+      [...salaryMonths].sort((a, b) => b.salariu - a.salariu)[0] ?? null;
+    const firstSalary = salaryMonths[0] ?? null;
+    const lastSalary = salaryMonths[salaryMonths.length - 1] ?? null;
+    const salaryGrowth =
+      firstSalary && lastSalary && firstSalary !== lastSalary
+        ? ((lastSalary.salariu - firstSalary.salariu) / firstSalary.salariu) * 100
+        : null;
+    const extraTotal =
+      periods.reduce((s, p) => s + Math.round((p.extraIncome || 0) * 100), 0) / 100;
+
+    // Yearly aggregates (cents to avoid float drift); carry-over excluded —
+    // it would double-count across the year's months.
+    const yearCents = new Map<
+      string,
+      { venit: number; spending: number; savings: number; months: number }
+    >();
+    for (const p of perPeriod) {
+      const y = p.id.slice(0, 4);
+      const e = yearCents.get(y) ?? { venit: 0, spending: 0, savings: 0, months: 0 };
+      e.venit += Math.round(p.venit * 100);
+      e.spending += Math.round(p.spending * 100);
+      e.savings += Math.round(p.savings * 100);
+      e.months += 1;
+      yearCents.set(y, e);
+    }
+    const years = [...yearCents.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([year, e]) => ({
+        year,
+        months: e.months,
+        venit: e.venit / 100,
+        spending: e.spending / 100,
+        savings: e.savings / 100,
+        rata: e.venit > 0 ? ((e.venit - e.spending) / e.venit) * 100 : 0
+      }));
+
     return {
       perPeriod,
       totalSpending,
@@ -153,7 +197,15 @@ export default function Statistici({
       topTx,
       savedTotal,
       projection,
-      busiest
+      busiest,
+      salaryMonthCount: salaryMonths.length,
+      avgSalary,
+      maxSalaryMonth,
+      firstSalary,
+      lastSalary,
+      salaryGrowth,
+      extraTotal,
+      years
     };
   }, [state, periods, withData, balances, currentPeriodId]);
 
@@ -257,6 +309,45 @@ export default function Statistici({
         />
       </section>
 
+      {stats.salaryMonthCount > 0 && (
+        <section className="stat-card">
+          <h2>Salariu</h2>
+          <p className="muted">
+            Venitul de bază pe luni — fără alte venituri și fără report.
+          </p>
+          <MiniBars
+            data={stats.perPeriod.map((p) => ({ label: p.label, value: p.salariu }))}
+          />
+          <div className="stat-facts">
+            <div>
+              <span className="muted">Medie / lună</span>
+              <strong>{formatLei(stats.avgSalary)}</strong>
+            </div>
+            <div>
+              <span className="muted">
+                Cel mai mare{stats.maxSalaryMonth ? ` (${stats.maxSalaryMonth.label})` : ""}
+              </span>
+              <strong>{formatLei(stats.maxSalaryMonth?.salariu ?? 0)}</strong>
+            </div>
+            {stats.salaryGrowth !== null && stats.firstSalary && stats.lastSalary && (
+              <div>
+                <span className="muted">
+                  Evoluție {stats.firstSalary.label} → {stats.lastSalary.label}
+                </span>
+                <strong className={stats.salaryGrowth < 0 ? "negative" : ""}>
+                  {stats.salaryGrowth >= 0 ? "+" : ""}
+                  {pct(stats.salaryGrowth)}
+                </strong>
+              </div>
+            )}
+            <div>
+              <span className="muted">Alte venituri (total)</span>
+              <strong>{formatLei(stats.extraTotal)}</strong>
+            </div>
+          </div>
+        </section>
+      )}
+
       <section className="stat-card">
         <h2>Analiză pe categorie</h2>
         <div className="chip-row" role="tablist" aria-label="Alege categoria">
@@ -304,6 +395,40 @@ export default function Statistici({
             </li>
           ))}
         </ol>
+      </section>
+
+      <section className="stat-card">
+        <h2>Sumar anual</h2>
+        <div className="year-table-wrap">
+          <table className="year-table">
+            <thead>
+              <tr>
+                <th>An</th>
+                <th>Venit</th>
+                <th>Cheltuieli</th>
+                <th>Economii</th>
+                <th>Rată</th>
+              </tr>
+            </thead>
+            <tbody>
+              {stats.years.map((y) => (
+                <tr key={y.year}>
+                  <td>
+                    {y.year}
+                    <span className="muted"> · {y.months} {y.months === 1 ? "lună" : "luni"}</span>
+                  </td>
+                  <td>{formatLei(y.venit)}</td>
+                  <td>{formatLei(y.spending)}</td>
+                  <td>{formatLei(y.savings)}</td>
+                  <td className={y.rata < 0 ? "negative" : ""}>{pct(y.rata)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="muted year-table__note">
+          Cheltuieli = fără economii. Rata pe venit real (fără report).
+        </p>
       </section>
 
       <div className="fact-grid">

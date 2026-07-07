@@ -257,6 +257,11 @@ function Shell({
             goToSettings={() => setTab("setari")}
             importState={importState}
             cloudMode={account !== null}
+            goToIstoric={(periodId) => {
+              setSelectedPeriodId(periodId);
+              setCategoryFilter(null);
+              setTab("istoric");
+            }}
           />
         )}
         {tab === "dashboard" && (
