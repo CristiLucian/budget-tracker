@@ -5,6 +5,7 @@ import { formatLei, sumAmounts } from "../lib/money";
 import { savingsIdSet, savingsOf, spendingOf } from "../lib/categories";
 import { actualIncome, computeBalances } from "../lib/budget";
 import { categoryEmoji } from "../lib/icons";
+import { fold, formatTags, tagsOf } from "../lib/tags";
 import { MONTHS_RO } from "../lib/period";
 import { MiniBars, PairBars, PercentLine } from "../components/charts";
 
@@ -39,6 +40,32 @@ export default function Statistici({
   const [yearSel, setYearSel] = useState<string | null>(null);
   const year =
     yearSel ?? (currentYear && years.includes(currentYear) ? currentYear : "all");
+
+  // Per-tag spending, with its own month/all-time scope ("cât am dat pe
+  // Carrefour luna asta?") independent of the year chips above.
+  const [tagQuery, setTagQuery] = useState("");
+  const [tagPeriod, setTagPeriod] = useState<string>("all");
+  const tagRows = useMemo(() => {
+    const savingsIds = savingsIdSet(state);
+    const source =
+      tagPeriod === "all" ? periods : periods.filter((p) => p.id === tagPeriod);
+    const byTag = new Map<string, { display: string; cents: number; count: number }>();
+    for (const p of source) {
+      for (const t of p.transactions) {
+        if (savingsIds.has(t.categoryId)) continue; // real spending only
+        for (const tag of tagsOf(t)) {
+          const key = fold(tag);
+          const e = byTag.get(key) ?? { display: tag, cents: 0, count: 0 };
+          e.cents += Math.round(t.amount * 100);
+          e.count += 1;
+          byTag.set(key, e);
+        }
+      }
+    }
+    return [...byTag.entries()]
+      .map(([key, e]) => ({ key, display: e.display, total: e.cents / 100, count: e.count }))
+      .sort((a, b) => b.total - a.total || a.key.localeCompare(b.key));
+  }, [state, periods, tagPeriod]);
 
   const stats = useMemo(() => {
     // Savings categories (e.g. Fond economii) are money kept, not spent.
@@ -269,6 +296,14 @@ export default function Statistici({
   // Card-title suffix making the active scope visible on every filtered card.
   const scope = year === "all" ? "" : ` · ${year}`;
 
+  const anyTags = periods.some((p) => p.transactions.some((t) => tagsOf(t).length > 0));
+  const tagQueryFold = fold(tagQuery.trim());
+  const tagMatches = tagQueryFold
+    ? tagRows.filter((r) => r.key.includes(tagQueryFold))
+    : tagRows;
+  const TAG_LIMIT = 12;
+  const tagShown = tagQueryFold ? tagMatches : tagMatches.slice(0, TAG_LIMIT);
+
   return (
     <div className="statistici">
       <header className="screen-header"><h1>Statistici</h1></header>
@@ -405,6 +440,60 @@ export default function Statistici({
         )}
       </section>
 
+      {anyTags && (
+        <section className="stat-card">
+          <h2>Cheltuieli pe taguri</h2>
+          <p className="muted">Totalul cheltuit pe fiecare tag, fără economii.</p>
+          <div className="tag-stats__controls">
+            <input
+              className="input"
+              type="search"
+              placeholder="Caută un tag…"
+              value={tagQuery}
+              onChange={(e) => setTagQuery(e.target.value)}
+              aria-label="Caută un tag"
+            />
+            <select
+              className="input"
+              value={tagPeriod}
+              onChange={(e) => setTagPeriod(e.target.value)}
+              aria-label="Perioada pentru statistica pe taguri"
+            >
+              <option value="all">Toate lunile</option>
+              {[...withData].reverse().map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          {tagShown.length === 0 ? (
+            <p className="muted">
+              {tagRows.length === 0
+                ? "Nicio tranzacție cu taguri în perioada aleasă."
+                : "Niciun tag nu se potrivește căutării."}
+            </p>
+          ) : (
+            <ul className="tag-stats">
+              {tagShown.map((r) => (
+                <li key={r.key} className="tag-stats__row">
+                  <span className="tag-stats__name">{r.display}</span>
+                  <span className="tag-stats__count">
+                    {r.count === 1 ? "o tranzacție" : `${r.count} tranzacții`}
+                  </span>
+                  <strong className="tag-stats__total">{formatLei(r.total)}</strong>
+                </li>
+              ))}
+            </ul>
+          )}
+          {!tagQueryFold && tagMatches.length > TAG_LIMIT && (
+            <p className="muted tag-stats__more">
+              Primele {TAG_LIMIT} din {tagMatches.length} taguri — caută pentru restul.
+            </p>
+          )}
+        </section>
+      )}
+
       <section className="stat-card">
         <h2>Top 10 cheltuieli{scope}</h2>
         <ol className="top-list">
@@ -416,7 +505,7 @@ export default function Statistici({
                 <span className="top-row__cat">{categoryName(state, t.categoryId)}</span>
                 <span className="top-row__per">
                   {t.periodName}
-                  {t.note ? ` · ${t.note}` : ""}
+                  {formatTags(t) ? ` · ${formatTags(t)}` : ""}
                 </span>
               </span>
               <span className="top-row__amount">{formatLei(t.amount)}</span>

@@ -46,6 +46,31 @@ describe("normalizeState (legacy carryIn migration)", () => {
   });
 });
 
+describe("normalizeState (legacy note -> tags migration)", () => {
+  it("turns a note into tags, splitting on commas", () => {
+    const state = mkState([
+      period("2026-07", 5000, [{ ...tx(42), note: "Carrefour, Mezeluri" }])
+    ]);
+    const t = normalizeState(state).periods[0].transactions[0];
+    expect(t.tags).toEqual(["Carrefour", "Mezeluri"]);
+    expect(t.note).toBeUndefined();
+  });
+
+  it("drops an empty note without creating tags", () => {
+    const state = mkState([period("2026-07", 5000, [{ ...tx(42), note: "  " }])]);
+    const t = normalizeState(state).periods[0].transactions[0];
+    expect(t.tags).toBeUndefined();
+    expect(t.note).toBeUndefined();
+  });
+
+  it("leaves already-tagged transactions untouched", () => {
+    const state = mkState([
+      period("2026-07", 5000, [{ ...tx(42), tags: ["Lidl"] }])
+    ]);
+    expect(normalizeState(state)).toBe(state);
+  });
+});
+
 describe("reducer", () => {
   it("setCarryEnabled sets the flag and clears any legacy amount", () => {
     const state = mkState([period("2026-07", 5000, [], { carryIn: 950 })]);

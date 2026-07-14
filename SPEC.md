@@ -28,7 +28,8 @@ type Transaction = {
   id: string;          // uuid
   categoryId: string;
   amount: number;      // positive, RON
-  note?: string;       // optional, empty by default
+  tags?: string[];     // optional short labels: store, product, brand
+  note?: string;       // deprecated single note; migrated to tags on load
   timestamp: string;   // ISO datetime, auto-set at creation, editable
 };
 
@@ -80,13 +81,13 @@ Categories are editable in Settings (rename, reorder, add, archive). Never hard-
 UI language: **Romanian**. Keep copy short and plain ("Adaugă", "Salvează", "Șterge", "Buget rămas").
 
 ### 1. Adaugă (default screen)
-The 5-second flow. A grid of category buttons (non-archived, in order). Tap category → numeric keypad-friendly amount input (`inputmode="decimal"`) → optional note field → "Salvează". After save: brief confirmation toast showing category + amount + new "Buget ramas", then reset for the next entry. This screen must be usable one-handed on a phone.
+The 5-second flow. A grid of category buttons (non-archived, in order). Tap category → numeric keypad-friendly amount input (`inputmode="decimal"`) → optional tags (Enter/comma adds a tag; suggestions from history) → "Salvează". After save: brief confirmation toast showing category + amount + new "Buget ramas", then reset for the next entry. This screen must be usable one-handed on a phone.
 
 ### 2. Dashboard
 Current period at a glance: the three numbers (disponibil / cheltuit / ramas) prominent at top, then per-category totals for the period as a list with amounts and a simple horizontal bar proportional to spend. Period switcher (‹ Mai 2026 ›) to browse history. Tapping a category opens its transactions for that period.
 
 ### 3. Istoric (transactions)
-Reverse-chronological list for the selected period: date, category, amount, note. Swipe or tap to edit/delete a transaction (edit: amount, category, note, timestamp). Deleting asks for confirmation.
+Reverse-chronological list for the selected period: date, category, amount, tags. Swipe or tap to edit/delete a transaction (edit: amount, category, tags, timestamp). Deleting asks for confirmation. A chip row of the period's tags (biggest spend first) filters the list by tag and shows the tag's total for the period. Statistici has a per-tag spending card: search a tag, pick a month or all-time, see total and transaction count (savings excluded).
 
 ### 4. Setări
 - budgetAvailable for the current period (and past periods, editable)

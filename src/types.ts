@@ -13,6 +13,9 @@ export type Transaction = {
   id: string; // uuid
   categoryId: string;
   amount: number; // positive, RON
+  // Short free-form labels: store, product, brand ("Carrefour", "Mezeluri").
+  tags?: string[];
+  /** @deprecated single free-text note; migrated to tags by normalizeState */
   note?: string;
   timestamp: string; // ISO datetime
 };

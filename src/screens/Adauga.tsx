@@ -8,10 +8,11 @@ import { uuid } from "../lib/id";
 import { categoryEmoji } from "../lib/icons";
 import { dateInPeriod } from "../lib/period";
 import { shortDate, sortNewestFirst } from "../lib/transactions";
+import { formatTags, normalizeTags } from "../lib/tags";
 import { loadState } from "../storage";
 import PeriodPicker from "../components/PeriodPicker";
 import BudgetEditor from "../components/BudgetEditor";
-import NoteSuggestions from "../components/NoteSuggestions";
+import TagInput from "../components/TagInput";
 import type { ToastMessage } from "../components/Toast";
 
 export default function Adauga({
@@ -35,7 +36,8 @@ export default function Adauga({
   const [selectedPeriodId, setSelectedPeriodId] = useState<string>(currentPeriod?.id ?? "");
   const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
   const [amount, setAmount] = useState("");
-  const [note, setNote] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagDraft, setTagDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [editingBudget, setEditingBudget] = useState(false);
   const amountRef = useRef<HTMLInputElement>(null);
@@ -78,7 +80,8 @@ export default function Adauga({
   function close() {
     setActiveCategoryId(null);
     setAmount("");
-    setNote("");
+    setTags([]);
+    setTagDraft("");
     setError(null);
   }
 
@@ -97,11 +100,13 @@ export default function Adauga({
       amountRef.current?.focus();
       return;
     }
+    // Text still sitting in the tag input counts as a tag too.
+    const finalTags = normalizeTags([...tags, tagDraft]);
     const tx = {
       id: uuid(),
       categoryId: activeCategory.id,
       amount: value,
-      note: note.trim() || undefined,
+      tags: finalTags.length > 0 ? finalTags : undefined,
       timestamp: timestampFor(period)
     };
     dispatch({ type: "addTransaction", periodId: period.id, transaction: tx });
@@ -210,7 +215,7 @@ export default function Adauga({
                     <span className="tx__cat">{categoryName(state, t.categoryId)}</span>
                     <span className="tx__sub">
                       {shortDate(t.timestamp)}
-                      {t.note ? ` · ${t.note}` : ""}
+                      {formatTags(t) ? ` · ${formatTags(t)}` : ""}
                     </span>
                   </span>
                   <span className="tx__amount">{formatLei(t.amount)}</span>
@@ -258,21 +263,14 @@ export default function Adauga({
                 />
               </label>
               {error && <div className="field-error">{error}</div>}
-              <label className="field field--with-tags">
-                <span className="field__label">Notă (opțional)</span>
-                <input
-                  className="input"
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  autoComplete="off"
-                />
-              </label>
-              <NoteSuggestions
+              <TagInput
                 state={state}
                 categoryId={activeCategory.id}
                 amount={parseAmount(amount)}
-                note={note}
-                onPick={setNote}
+                tags={tags}
+                draft={tagDraft}
+                onTagsChange={setTags}
+                onDraftChange={setTagDraft}
               />
               <div className="sheet__actions">
                 <button type="button" className="btn" onClick={close}>

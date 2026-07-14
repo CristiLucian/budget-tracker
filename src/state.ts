@@ -1,6 +1,7 @@
 import type { AppState, Category, Period, Transaction } from "./types";
 import { slugify, uuid } from "./lib/id";
 import { findPeriodForDate, makePeriod, periodForDate, sortPeriods } from "./lib/period";
+import { normalizeTags } from "./lib/tags";
 
 export const DEFAULT_CATEGORY_NAMES = [
   "Fond economii",
@@ -36,24 +37,44 @@ export function emptyState(): AppState {
 }
 
 /**
- * Upgrade legacy stored data where the carry-over was a manual amount
- * (carryIn) to the computed model (carryEnabled). Applied to every state
- * entering the app: local storage, cloud snapshots, backup imports.
+ * Upgrade legacy stored data. Applied to every state entering the app:
+ * local storage, cloud snapshots, backup imports.
+ *  - carryIn (manual carry-over amount) -> carryEnabled (computed model)
+ *  - note (single free text) -> tags (comma-separated pieces become tags)
  */
 export function normalizeState(state: AppState): AppState {
-  if (!state.periods.some((p) => p.carryIn !== undefined)) return state;
+  const needsCarry = state.periods.some((p) => p.carryIn !== undefined);
+  const needsTags = state.periods.some((p) =>
+    p.transactions.some((t) => t.note !== undefined)
+  );
+  if (!needsCarry && !needsTags) return state;
   return {
     ...state,
     periods: state.periods.map((p) => {
-      if (p.carryIn === undefined) return p;
+      const untouched =
+        p.carryIn === undefined && !p.transactions.some((t) => t.note !== undefined);
+      if (untouched) return p;
       const next: Period = {
         ...p,
-        carryEnabled: p.carryEnabled || p.carryIn !== 0 || undefined
+        transactions: p.transactions.map(migrateNoteToTags)
       };
-      delete next.carryIn;
+      if (p.carryIn !== undefined) {
+        next.carryEnabled = p.carryEnabled || p.carryIn !== 0 || undefined;
+        delete next.carryIn;
+      }
       return next;
     })
   };
+}
+
+function migrateNoteToTags(t: Transaction): Transaction {
+  if (t.note === undefined) return t;
+  const tags = normalizeTags([...(t.tags ?? []), ...t.note.split(",")]);
+  const next: Transaction = { ...t };
+  delete next.note;
+  if (tags.length > 0) next.tags = tags;
+  else delete next.tags;
+  return next;
 }
 
 /** Add the period containing `now` if no existing period covers it. */

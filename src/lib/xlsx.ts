@@ -2,6 +2,7 @@ import type { AppState, Period } from "../types";
 import { sumAmounts } from "./money";
 import { actualIncome, computeBalances, type PeriodBalance } from "./budget";
 import { savingsIdSet, spendingOf } from "./categories";
+import { tagsOf } from "./tags";
 
 const MONEY_FMT = '#,##0.00 "lei"';
 
@@ -69,7 +70,7 @@ export async function exportExcel(state: AppState): Promise<void> {
     { header: "Data", key: "data", width: 12 },
     { header: "Perioadă", key: "per", width: 16 },
     { header: "Categorie", key: "cat", width: 20 },
-    { header: "Notă", key: "nota", width: 28 },
+    { header: "Taguri", key: "nota", width: 28 },
     { header: "Sumă", key: "suma", width: 14 }
   ];
   flat.getRow(1).font = { bold: true };
@@ -79,7 +80,7 @@ export async function exportExcel(state: AppState): Promise<void> {
         data: new Date(t.timestamp),
         per: p.name,
         cat: catName(t.categoryId),
-        nota: t.note ?? "",
+        nota: tagsOf(t).join(", "),
         suma: t.amount
       });
       row.getCell("data").numFmt = "dd.mm.yyyy";

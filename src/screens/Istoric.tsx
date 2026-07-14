@@ -5,8 +5,8 @@ import { categoryName } from "../state";
 import { formatLei, parseAmount, parseMoney, sanitizeAmountInput, sumAmounts } from "../lib/money";
 import { dateInPeriod, findPeriodForDate } from "../lib/period";
 import { shortDate, sortNewestFirst } from "../lib/transactions";
-import { fold } from "../lib/suggestions";
-import NoteSuggestions from "../components/NoteSuggestions";
+import { fold, formatTags, normalizeTags, tagsOf } from "../lib/tags";
+import TagInput from "../components/TagInput";
 import { categoryEmoji } from "../lib/icons";
 import { uuid } from "../lib/id";
 import PeriodPicker from "../components/PeriodPicker";
@@ -39,6 +39,7 @@ export default function Istoric({
 }) {
   const [view, setView] = useState<View>("categorii");
   const [query, setQuery] = useState("");
+  const [tagFilter, setTagFilter] = useState<string | null>(null);
   const [editing, setEditing] = useState<Transaction | null>(null);
   // The period the edited transaction lives in — can differ from the
   // selected period when editing straight from a search result.
@@ -46,7 +47,8 @@ export default function Istoric({
   const [isNew, setIsNew] = useState(false);
   const [amount, setAmount] = useState("");
   const [catId, setCatId] = useState("");
-  const [note, setNote] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagDraft, setTagDraft] = useState("");
   const [when, setWhen] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -59,11 +61,33 @@ export default function Istoric({
     );
   }
 
+  const tagFilterFold = tagFilter ? fold(tagFilter) : null;
   const filtered = period.transactions.filter(
-    (t) => !categoryFilter || t.categoryId === categoryFilter
+    (t) =>
+      (!categoryFilter || t.categoryId === categoryFilter) &&
+      (!tagFilterFold || tagsOf(t).some((tag) => fold(tag) === tagFilterFold))
   );
 
   const chronological = sortNewestFirst(filtered);
+
+  // Tags used in the selected period, biggest spend first, for the filter
+  // chips. A stale filter (tag absent from this month) still gets a chip so
+  // it can be switched off.
+  const periodTagCents = new Map<string, { display: string; cents: number }>();
+  for (const t of period.transactions) {
+    for (const tag of tagsOf(t)) {
+      const key = fold(tag);
+      const e = periodTagCents.get(key) ?? { display: tag, cents: 0 };
+      e.cents += Math.round(t.amount * 100);
+      periodTagCents.set(key, e);
+    }
+  }
+  if (tagFilterFold && !periodTagCents.has(tagFilterFold)) {
+    periodTagCents.set(tagFilterFold, { display: tagFilter!, cents: 0 });
+  }
+  const periodTags = [...periodTagCents.entries()]
+    .sort((a, b) => b[1].cents - a[1].cents || a[0].localeCompare(b[0]))
+    .map(([key, e]) => ({ key, display: e.display }));
 
   // Grouped view: categories in settings order, then orphans.
   const knownOrder = new Map(
@@ -87,7 +111,8 @@ export default function Istoric({
     setEditing(t);
     setAmount(String(t.amount).replace(".", ","));
     setCatId(t.categoryId);
-    setNote(t.note ?? "");
+    setTags(tagsOf(t));
+    setTagDraft("");
     setWhen(toLocalInputValue(t.timestamp));
     setError(null);
   }
@@ -115,7 +140,8 @@ export default function Istoric({
     });
     setAmount("");
     setCatId(categoryFilter ?? firstActive?.id ?? "");
-    setNote("");
+    setTags([]);
+    setTagDraft("");
     setWhen(toLocalInputValue(ts.toISOString()));
     setError(null);
   }
@@ -132,13 +158,16 @@ export default function Istoric({
       setError("Dată invalidă");
       return;
     }
+    // Text still sitting in the tag input counts as a tag too.
+    const finalTags = normalizeTags([...tags, tagDraft]);
     const updated: Transaction = {
       ...editing,
       amount: value,
       categoryId: catId,
-      note: note.trim() || undefined,
+      tags: finalTags.length > 0 ? finalTags : undefined,
       timestamp: date.toISOString()
     };
+    delete updated.note; // legacy field, superseded by tags
     if (isNew) {
       const home = findPeriodForDate(state.periods, date);
       if (!home) {
@@ -181,7 +210,7 @@ export default function Istoric({
 
   const categories = [...state.settings.categories].sort((a, b) => a.order - b.order);
 
-  // Cross-month search: matches the note, the category name (both
+  // Cross-month search: matches any tag, the category name (both
   // diacritic-insensitive) or an exact amount ("45,50").
   const q = query.trim();
   const qFold = fold(q);
@@ -192,7 +221,7 @@ export default function Istoric({
           p.transactions
             .filter(
               (t) =>
-                fold(t.note ?? "").includes(qFold) ||
+                tagsOf(t).some((tag) => fold(tag).includes(qFold)) ||
                 fold(categoryName(state, t.categoryId)).includes(qFold) ||
                 (qNum !== null && qNum > 0 && Math.abs(t.amount - qNum) < 0.005)
             )
@@ -209,7 +238,7 @@ export default function Istoric({
         <input
           className="input"
           type="search"
-          placeholder="Caută în toate lunile — notă, categorie sau sumă"
+          placeholder="Caută în toate lunile — tag, categorie sau sumă"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           aria-label="Caută tranzacții în toate lunile"
@@ -234,7 +263,7 @@ export default function Istoric({
                     <span className="tx__cat">{categoryName(state, t.categoryId)}</span>
                     <span className="tx__sub">
                       {periodName} · {shortDate(t.timestamp)}
-                      {t.note ? ` · ${t.note}` : ""}
+                      {formatTags(t) ? ` · ${formatTags(t)}` : ""}
                     </span>
                   </span>
                   <span className="tx__amount">{formatLei(t.amount)}</span>
@@ -276,6 +305,29 @@ export default function Istoric({
         </button>
       </div>
 
+      {periodTags.length > 0 && (
+        <div className="chip-row chip-row--scroll istoric-tags" aria-label="Filtrează după tag">
+          {periodTags.map(({ key, display }) => (
+            <button
+              key={key}
+              className={`chip ${key === tagFilterFold ? "is-active" : ""}`}
+              aria-pressed={key === tagFilterFold}
+              onClick={() => setTagFilter(key === tagFilterFold ? null : display)}
+            >
+              {display}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {tagFilter && (
+        <p className="istoric-tag-total">
+          <strong>{tagFilter}</strong> în {period.name}:{" "}
+          <strong>{formatLei(sumAmounts(filtered))}</strong> ·{" "}
+          {filtered.length === 1 ? "o tranzacție" : `${filtered.length} tranzacții`}
+        </p>
+      )}
+
       {/* Mobile: cards */}
       <div className="istoric-cards">
         {view === "categorii" ? (
@@ -294,7 +346,7 @@ export default function Istoric({
                     <li key={t.id}>
                       <button className="tx-row" onClick={() => startEdit(t)}>
                         <span className="tx-row__date">{shortDate(t.timestamp)}</span>
-                        <span className="tx-row__note">{t.note ?? ""}</span>
+                        <span className="tx-row__note">{formatTags(t)}</span>
                         <span className="tx-row__amount">{formatLei(t.amount)}</span>
                       </button>
                     </li>
@@ -316,7 +368,7 @@ export default function Istoric({
                     <span className="tx__cat">{categoryName(state, t.categoryId)}</span>
                     <span className="tx__sub">
                       {shortDate(t.timestamp)}
-                      {t.note ? ` · ${t.note}` : ""}
+                      {formatTags(t) ? ` · ${formatTags(t)}` : ""}
                     </span>
                   </span>
                   <span className="tx__amount">{formatLei(t.amount)}</span>
@@ -338,7 +390,7 @@ export default function Istoric({
               <tr>
                 <th className="col-date">Data</th>
                 {view === "cronologic" && <th className="col-cat">Categorie</th>}
-                <th className="col-note">Notă</th>
+                <th className="col-note">Taguri</th>
                 <th className="col-amount">Sumă</th>
               </tr>
             </thead>
@@ -357,7 +409,7 @@ export default function Istoric({
                       onKeyDown={(e) => (e.key === "Enter" ? startEdit(t) : undefined)}>
                       <td className="col-date">{shortDate(t.timestamp)}</td>
                       <td className="col-note">
-                        {t.note ? t.note : <span className="muted">Fără notă</span>}
+                        {formatTags(t) || <span className="muted">Fără taguri</span>}
                       </td>
                       <td className="col-amount">{formatLei(t.amount)}</td>
                     </tr>
@@ -376,7 +428,7 @@ export default function Istoric({
                         {categoryName(state, t.categoryId)}
                       </span>
                     </td>
-                    <td className="col-note">{t.note ?? ""}</td>
+                    <td className="col-note">{formatTags(t)}</td>
                     <td className="col-amount">{formatLei(t.amount)}</td>
                   </tr>
                 ))}
@@ -427,20 +479,14 @@ export default function Istoric({
                   ))}
                 </select>
               </label>
-              <label className="field field--with-tags">
-                <span className="field__label">Notă</span>
-                <input
-                  className="input"
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                />
-              </label>
-              <NoteSuggestions
+              <TagInput
                 state={state}
                 categoryId={catId}
                 amount={parseAmount(amount)}
-                note={note}
-                onPick={setNote}
+                tags={tags}
+                draft={tagDraft}
+                onTagsChange={setTags}
+                onDraftChange={setTagDraft}
               />
               <label className="field">
                 <span className="field__label">Data și ora</span>
