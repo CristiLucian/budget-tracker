@@ -2205,15 +2205,12 @@ h3 {
 .field--with-tags {
   margin-bottom: 6px;
 }
-.note-tags {
-  margin: 0 0 14px;
-}
 .tag-input {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
-  padding: 6px 8px;
+  gap: 8px;
+  padding: 8px 10px;
   cursor: text;
 }
 .tag-input:focus-within {
@@ -2257,6 +2254,40 @@ h3 {
 }
 .tag-input__field::placeholder {
   color: var(--muted);
+}
+/* Suggestions live clearly OUTSIDE the field: a labelled block with
+   dashed "+" chips, so they read as add-actions, not attached tags. */
+.tag-suggest {
+  margin: 12px 0 16px;
+}
+.tag-suggest__label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 2px;
+}
+.tag-suggest .chip-row {
+  margin: 6px 0 0;
+}
+.chip--add {
+  border-style: dashed;
+}
+.chip--add:hover {
+  border-style: solid;
+}
+
+/* --- Statistici: section tabs --- */
+.statistici-tabs {
+  display: flex;
+  width: 100%;
+  margin-bottom: 14px;
+}
+.statistici-tabs .segmented__btn {
+  flex: 1;
+  padding: 7px 4px;
 }
 
 /* --- Istoric: tag filter chips + per-tag total --- */

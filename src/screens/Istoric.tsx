@@ -250,7 +250,7 @@ export default function Istoric({
           <p className="muted">
             {searchResults.length === 0
               ? "Niciun rezultat."
-              : `${searchResults.length} ${searchResults.length === 1 ? "rezultat" : "rezultate"} în toate lunile${searchResults.length > 50 ? " — primele 50" : ""}`}
+              : `${searchResults.length} ${searchResults.length === 1 ? "rezultat" : "rezultate"} în toate lunile · total ${formatLei(sumAmounts(searchResults.map((r) => r.t)))}${searchResults.length > 50 ? " — primele 50" : ""}`}
           </p>
           <ul className="tx-list">
             {searchResults.slice(0, 50).map(({ t, periodId, periodName }) => (

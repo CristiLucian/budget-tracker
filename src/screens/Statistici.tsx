@@ -19,6 +19,17 @@ function pct(n: number): string {
   return `${n.toFixed(1).replace(".", ",")}%`;
 }
 
+// Internal sections so the screen stays short and single-purpose:
+// General (monthly overview), Categorii, Taguri, Anual.
+type Tab = "general" | "categorii" | "taguri" | "anual";
+
+const TABS: [Tab, string][] = [
+  ["general", "General"],
+  ["categorii", "Categorii"],
+  ["taguri", "Taguri"],
+  ["anual", "Anual"]
+];
+
 export default function Statistici({
   state,
   currentPeriodId
@@ -32,6 +43,7 @@ export default function Statistici({
     (p) => p.transactions.length > 0 || (balances.get(p.id)?.available ?? 0) > 0
   );
   const [selectedCat, setSelectedCat] = useState<string>("alimente");
+  const [tab, setTab] = useState<Tab>("general");
 
   // Year scope for the time-based cards. Defaults to the current year so
   // charts stay readable as history grows; "Toți anii" is one tap away.
@@ -304,10 +316,53 @@ export default function Statistici({
   const TAG_LIMIT = 12;
   const tagShown = tagQueryFold ? tagMatches : tagMatches.slice(0, TAG_LIMIT);
 
+  // Year chips shared by the tabs whose cards are year-scoped.
+  const yearFilter = (
+    <div className="year-filter">
+      <div className="chip-row" role="tablist" aria-label="Anul pentru statistici">
+        <button
+          role="tab"
+          aria-selected={year === "all"}
+          className={`chip ${year === "all" ? "is-active" : ""}`}
+          onClick={() => setYearSel("all")}
+        >
+          Toți anii
+        </button>
+        {years.map((y) => (
+          <button
+            key={y}
+            role="tab"
+            aria-selected={year === y}
+            className={`chip ${year === y ? "is-active" : ""}`}
+            onClick={() => setYearSel(y)}
+          >
+            {y}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
   return (
     <div className="statistici">
       <header className="screen-header"><h1>Statistici</h1></header>
 
+      <div className="segmented statistici-tabs" role="tablist" aria-label="Secțiuni statistici">
+        {TABS.map(([id, label]) => (
+          <button
+            key={id}
+            role="tab"
+            aria-selected={tab === id}
+            className={`segmented__btn ${tab === id ? "is-active" : ""}`}
+            onClick={() => setTab(id)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "general" && (
+        <>
       <div className="kpi-grid">
         <div className="kpi">
           <span className="kpi__label">Medie cheltuieli / lună</span>
@@ -355,29 +410,7 @@ export default function Statistici({
         </section>
       )}
 
-      <div className="year-filter">
-        <div className="chip-row" role="tablist" aria-label="Anul pentru statistici">
-          <button
-            role="tab"
-            aria-selected={year === "all"}
-            className={`chip ${year === "all" ? "is-active" : ""}`}
-            onClick={() => setYearSel("all")}
-          >
-            Toți anii
-          </button>
-          {years.map((y) => (
-            <button
-              key={y}
-              role="tab"
-              aria-selected={year === y}
-              className={`chip ${year === y ? "is-active" : ""}`}
-              onClick={() => setYearSel(y)}
-            >
-              {y}
-            </button>
-          ))}
-        </div>
-      </div>
+      {yearFilter}
 
       <section className="stat-card">
         <h2>Cheltuit vs. disponibil{scope}</h2>
@@ -410,6 +443,12 @@ export default function Statistici({
           <p className="muted">Apare după prima lună încheiată.</p>
         )}
       </section>
+        </>
+      )}
+
+      {tab === "categorii" && (
+        <>
+      {yearFilter}
 
       <section className="stat-card">
         <h2>Analiză pe categorie{scope}</h2>
@@ -440,7 +479,30 @@ export default function Statistici({
         )}
       </section>
 
-      {anyTags && (
+      <section className="stat-card">
+        <h2>Top 10 cheltuieli{scope}</h2>
+        <ol className="top-list">
+          {stats.topTx.map((t, i) => (
+            <li key={t.id} className="top-row">
+              <span className="top-row__rank">{i + 1}</span>
+              <span className="top-row__emoji" aria-hidden="true">{categoryEmoji(t.categoryId)}</span>
+              <span className="top-row__main">
+                <span className="top-row__cat">{categoryName(state, t.categoryId)}</span>
+                <span className="top-row__per">
+                  {t.periodName}
+                  {formatTags(t) ? ` · ${formatTags(t)}` : ""}
+                </span>
+              </span>
+              <span className="top-row__amount">{formatLei(t.amount)}</span>
+            </li>
+          ))}
+        </ol>
+      </section>
+        </>
+      )}
+
+      {tab === "taguri" &&
+        (anyTags ? (
         <section className="stat-card">
           <h2>Cheltuieli pe taguri</h2>
           <p className="muted">Totalul cheltuit pe fiecare tag, fără economii.</p>
@@ -492,28 +554,15 @@ export default function Statistici({
             </p>
           )}
         </section>
-      )}
+        ) : (
+          <p className="muted">
+            Nicio tranzacție cu taguri încă — adaugă taguri din formularul de
+            cheltuieli.
+          </p>
+        ))}
 
-      <section className="stat-card">
-        <h2>Top 10 cheltuieli{scope}</h2>
-        <ol className="top-list">
-          {stats.topTx.map((t, i) => (
-            <li key={t.id} className="top-row">
-              <span className="top-row__rank">{i + 1}</span>
-              <span className="top-row__emoji" aria-hidden="true">{categoryEmoji(t.categoryId)}</span>
-              <span className="top-row__main">
-                <span className="top-row__cat">{categoryName(state, t.categoryId)}</span>
-                <span className="top-row__per">
-                  {t.periodName}
-                  {formatTags(t) ? ` · ${formatTags(t)}` : ""}
-                </span>
-              </span>
-              <span className="top-row__amount">{formatLei(t.amount)}</span>
-            </li>
-          ))}
-        </ol>
-      </section>
-
+      {tab === "anual" && (
+        <>
       <section className="stat-card">
         <h2>Sumar anual{scope}</h2>
         <div className="year-table-wrap">
@@ -586,7 +635,10 @@ export default function Statistici({
           </div>
         </section>
       )}
+        </>
+      )}
 
+      {tab === "general" && (
       <div className="fact-grid">
         <div className="stat-card fact">
           <span className="fact__emoji" aria-hidden="true">💰</span>
@@ -624,6 +676,7 @@ export default function Statistici({
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 }

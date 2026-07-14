@@ -97,12 +97,20 @@ export default function TagInput({
         />
       </div>
       {suggestions.length > 0 && (
-        <div className="chip-row note-tags" aria-label="Sugestii de taguri">
-          {suggestions.map((s) => (
-            <button type="button" key={s} className="chip" onClick={() => add(s)}>
-              {s}
-            </button>
-          ))}
+        <div className="tag-suggest">
+          <span className="tag-suggest__label">Sugestii</span>
+          <div className="chip-row" aria-label="Sugestii de taguri">
+            {suggestions.map((s) => (
+              <button
+                type="button"
+                key={s}
+                className="chip chip--add"
+                onClick={() => add(s)}
+              >
+                <span aria-hidden="true">+</span> {s}
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </div>
