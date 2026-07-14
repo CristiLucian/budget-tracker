@@ -236,6 +236,7 @@ h3 {
     margin-bottom: 0;
   }
   .statistici > .screen-header,
+  .statistici > .statistici-tabs,
   .statistici > .kpi-grid,
   .statistici > .stat-card--accent,
   .statistici > .year-filter,
@@ -2322,35 +2323,71 @@ h3 {
   list-style: none;
   margin: 0;
   padding: 0;
-}
-.tag-stats__row {
   display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.tag-row {
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 10px;
+  padding: 10px 12px;
+  transition: border-color 0.12s ease, background 0.12s ease, box-shadow 0.12s ease;
+}
+.tag-row:hover {
+  border-color: var(--primary);
+  box-shadow: var(--shadow-sm);
+}
+.tag-row.is-active {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+.tag-row__top {
+  display: flex;
+  justify-content: space-between;
   align-items: baseline;
-  gap: 10px;
-  padding: 9px 0;
-  border-bottom: 1px solid var(--border);
+  gap: 8px;
+  margin-bottom: 7px;
 }
-.tag-stats__row:last-child {
-  border-bottom: none;
-}
-.tag-stats__name {
+.tag-row__name {
   font-weight: 600;
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-.tag-stats__count {
-  color: var(--muted);
-  font-size: 0.84rem;
-  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
-.tag-stats__total {
+.tag-row__amount {
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+.tag-row__bar {
+  display: block;
+  height: 5px;
+  background: #eef1f4;
+  border-radius: 3px;
+  overflow: hidden;
+}
+.tag-row__fill {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary), var(--primary-dark));
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+.tag-row__meta {
+  display: block;
+  margin-top: 7px;
+  font-size: 0.8rem;
+  color: var(--muted);
 }
 .tag-stats__more {
   margin: 10px 0 0;
   font-size: 0.84rem;
+}
+[data-theme="dark"] .tag-row__bar {
+  background: var(--seg-bg);
 }
 
 /* --- Istoric: cross-month search --- */

@@ -57,6 +57,7 @@ export default function Statistici({
   // Carrefour luna asta?") independent of the year chips above.
   const [tagQuery, setTagQuery] = useState("");
   const [tagPeriod, setTagPeriod] = useState<string>("all");
+  const [selTag, setSelTag] = useState<string | null>(null); // folded key
   const tagRows = useMemo(() => {
     const savingsIds = savingsIdSet(state);
     const source =
@@ -315,6 +316,61 @@ export default function Statistici({
     : tagRows;
   const TAG_LIMIT = 12;
   const tagShown = tagQueryFold ? tagMatches : tagMatches.slice(0, TAG_LIMIT);
+  const tagMax = tagShown.reduce((m, r) => Math.max(m, r.total), 0);
+
+  // Detail for the selected tag (defaults to the biggest one shown). The
+  // evolution is always all-time — the month select only scopes the list.
+  const allTagKeys = new Set<string>();
+  for (const p of periods) {
+    for (const t of p.transactions) {
+      for (const tag of tagsOf(t)) allTagKeys.add(fold(tag));
+    }
+  }
+  const effTagKey =
+    selTag && allTagKeys.has(selTag) ? selTag : tagShown[0]?.key ?? null;
+
+  let tagDetail: {
+    display: string;
+    total: number;
+    count: number;
+    monthsActive: number;
+    avgTx: number;
+    series: { label: string; value: number }[];
+  } | null = null;
+  if (effTagKey) {
+    const savingsIds = savingsIdSet(state);
+    let cents = 0;
+    let count = 0;
+    let lastUsed = 0;
+    let display = effTagKey;
+    const series = withData.map((p) => {
+      let periodCents = 0;
+      for (const t of p.transactions) {
+        if (savingsIds.has(t.categoryId)) continue;
+        const match = tagsOf(t).find((tag) => fold(tag) === effTagKey);
+        if (!match) continue;
+        periodCents += Math.round(t.amount * 100);
+        count += 1;
+        const ts = Date.parse(t.timestamp) || 0;
+        if (ts >= lastUsed) {
+          lastUsed = ts;
+          display = match;
+        }
+      }
+      cents += periodCents;
+      return { label: shortPeriodLabel(p.id), value: periodCents / 100 };
+    });
+    if (count > 0) {
+      tagDetail = {
+        display,
+        total: cents / 100,
+        count,
+        monthsActive: series.filter((s) => s.value > 0).length,
+        avgTx: cents / 100 / count,
+        series
+      };
+    }
+  }
 
   // Year chips shared by the tabs whose cards are year-scoped.
   const yearFilter = (
@@ -503,6 +559,7 @@ export default function Statistici({
 
       {tab === "taguri" &&
         (anyTags ? (
+        <>
         <section className="stat-card">
           <h2>Cheltuieli pe taguri</h2>
           <p className="muted">Totalul cheltuit pe fiecare tag, fără economii.</p>
@@ -538,12 +595,29 @@ export default function Statistici({
           ) : (
             <ul className="tag-stats">
               {tagShown.map((r) => (
-                <li key={r.key} className="tag-stats__row">
-                  <span className="tag-stats__name">{r.display}</span>
-                  <span className="tag-stats__count">
-                    {r.count === 1 ? "o tranzacție" : `${r.count} tranzacții`}
-                  </span>
-                  <strong className="tag-stats__total">{formatLei(r.total)}</strong>
+                <li key={r.key}>
+                  <button
+                    className={`tag-row ${r.key === effTagKey ? "is-active" : ""}`}
+                    onClick={() => setSelTag(r.key)}
+                    aria-pressed={r.key === effTagKey}
+                    aria-label={`${r.display}: ${formatLei(r.total)} — vezi detalii`}
+                  >
+                    <span className="tag-row__top">
+                      <span className="tag-row__name">{r.display}</span>
+                      <span className="tag-row__amount">{formatLei(r.total)}</span>
+                    </span>
+                    <span className="tag-row__bar">
+                      <span
+                        className="tag-row__fill"
+                        style={{ width: `${tagMax > 0 ? (r.total / tagMax) * 100 : 0}%` }}
+                      />
+                    </span>
+                    <span className="tag-row__meta">
+                      {r.count === 1
+                        ? "o tranzacție"
+                        : `${r.count} tranzacții · medie ${formatLei(r.total / r.count)}`}
+                    </span>
+                  </button>
                 </li>
               ))}
             </ul>
@@ -554,6 +628,39 @@ export default function Statistici({
             </p>
           )}
         </section>
+
+        {tagDetail && (
+          <section className="stat-card">
+            <h2>{tagDetail.display}</h2>
+            <p className="muted">Evoluția tagului, pe toate lunile.</p>
+            <MiniBars data={tagDetail.series} />
+            <div className="stat-facts">
+              <div>
+                <span className="muted">Total</span>
+                <strong>{formatLei(tagDetail.total)}</strong>
+              </div>
+              <div>
+                <span className="muted">Medie / lună activă</span>
+                <strong>
+                  {formatLei(
+                    tagDetail.monthsActive > 0
+                      ? tagDetail.total / tagDetail.monthsActive
+                      : 0
+                  )}
+                </strong>
+              </div>
+              <div>
+                <span className="muted">Tranzacții</span>
+                <strong>{tagDetail.count}</strong>
+              </div>
+              <div>
+                <span className="muted">Medie / tranzacție</span>
+                <strong>{formatLei(tagDetail.avgTx)}</strong>
+              </div>
+            </div>
+          </section>
+        )}
+        </>
         ) : (
           <p className="muted">
             Nicio tranzacție cu taguri încă — adaugă taguri din formularul de
