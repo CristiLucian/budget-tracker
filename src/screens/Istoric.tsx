@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { AppState, Period, Transaction } from "../types";
 import type { Action } from "../state";
 import { categoryName } from "../state";
@@ -27,6 +27,8 @@ export default function Istoric({
   onSelectPeriod,
   categoryFilter,
   onClearFilter,
+  focusTxId,
+  onClearFocus,
   showToast
 }: {
   state: AppState;
@@ -35,6 +37,9 @@ export default function Istoric({
   onSelectPeriod: (id: string) => void;
   categoryFilter: string | null;
   onClearFilter: () => void;
+  // Transaction to open for editing on arrival (e.g. tapped in Adaugă).
+  focusTxId: string | null;
+  onClearFocus: () => void;
   showToast: (t: ToastMessage) => void;
 }) {
   const [view, setView] = useState<View>("categorii");
@@ -51,6 +56,33 @@ export default function Istoric({
   const [tagDraft, setTagDraft] = useState("");
   const [when, setWhen] = useState("");
   const [error, setError] = useState<string | null>(null);
+
+  function startEdit(t: Transaction, sourcePeriodId?: string) {
+    setIsNew(false);
+    setEditingPeriodId(sourcePeriodId ?? period!.id);
+    setEditing(t);
+    setAmount(String(t.amount).replace(".", ","));
+    setCatId(t.categoryId);
+    setTags(tagsOf(t));
+    setTagDraft("");
+    setWhen(toLocalInputValue(t.timestamp));
+    setError(null);
+  }
+
+  // Arriving with a target transaction (tapped in another screen): open its
+  // edit sheet directly, then consume the request so it doesn't reopen.
+  useEffect(() => {
+    if (!focusTxId) return;
+    for (const p of state.periods) {
+      const t = p.transactions.find((x) => x.id === focusTxId);
+      if (t) {
+        startEdit(t, p.id);
+        break;
+      }
+    }
+    onClearFocus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusTxId]);
 
   if (!period) {
     return (
@@ -104,18 +136,6 @@ export default function Istoric({
     const txs = sortNewestFirst(filtered.filter((t) => t.categoryId === id));
     return { id, name: categoryName(state, id), txs, total: sumAmounts(txs) };
   });
-
-  function startEdit(t: Transaction, sourcePeriodId?: string) {
-    setIsNew(false);
-    setEditingPeriodId(sourcePeriodId ?? period!.id);
-    setEditing(t);
-    setAmount(String(t.amount).replace(".", ","));
-    setCatId(t.categoryId);
-    setTags(tagsOf(t));
-    setTagDraft("");
-    setWhen(toLocalInputValue(t.timestamp));
-    setError(null);
-  }
 
   function startCreate() {
     if (!period) return;

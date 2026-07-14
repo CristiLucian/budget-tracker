@@ -99,6 +99,8 @@ function Shell({
   const [tab, setTab] = useState<Tab>("adauga");
   const [selectedPeriodId, setSelectedPeriodId] = useState<string>("");
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  // Transaction to open for editing right after landing on Istoric.
+  const [focusTxId, setFocusTxId] = useState<string | null>(null);
   const [toast, setToast] = useState<ToastMessage | null>(null);
 
   const apply = useCallback((next: AppState) => {
@@ -257,9 +259,10 @@ function Shell({
             goToSettings={() => setTab("setari")}
             importState={importState}
             cloudMode={account !== null}
-            goToIstoric={(periodId) => {
+            goToIstoric={(periodId, transactionId) => {
               setSelectedPeriodId(periodId);
               setCategoryFilter(null);
+              setFocusTxId(transactionId ?? null);
               setTab("istoric");
             }}
           />
@@ -286,6 +289,8 @@ function Shell({
             }}
             categoryFilter={categoryFilter}
             onClearFilter={() => setCategoryFilter(null)}
+            focusTxId={focusTxId}
+            onClearFocus={() => setFocusTxId(null)}
             showToast={setToast}
           />
         )}

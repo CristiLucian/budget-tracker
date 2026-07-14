@@ -31,7 +31,7 @@ export default function Adauga({
   goToSettings: () => void;
   importState: (s: AppState) => Promise<void>;
   cloudMode: boolean;
-  goToIstoric: (periodId: string) => void;
+  goToIstoric: (periodId: string, transactionId?: string) => void;
 }) {
   const [selectedPeriodId, setSelectedPeriodId] = useState<string>(currentPeriod?.id ?? "");
   const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
@@ -205,8 +205,8 @@ export default function Adauga({
               <li key={t.id}>
                 <button
                   className="tx"
-                  onClick={() => goToIstoric(period.id)}
-                  aria-label={`${categoryName(state, t.categoryId)}: ${formatLei(t.amount)} — vezi în Istoric`}
+                  onClick={() => goToIstoric(period.id, t.id)}
+                  aria-label={`${categoryName(state, t.categoryId)}: ${formatLei(t.amount)} — deschide tranzacția`}
                 >
                   <span className="tx__emoji" aria-hidden="true">
                     {categoryEmoji(t.categoryId)}
